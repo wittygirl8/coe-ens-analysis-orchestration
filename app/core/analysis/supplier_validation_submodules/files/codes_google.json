@@ -1,0 +1,410 @@
+[
+    {
+        "countryName": "Argentina",
+        "countryCode": "AR",
+        "languages": [
+            {"name": "Spanish", "code": "es"}
+        ]
+    },
+    {
+        "countryName": "Australia",
+        "countryCode": "AU",
+        "languages": [
+            {"name": "English", "code": "en"}
+        ]
+    },
+    {
+        "countryName": "Austria",
+        "countryCode": "AT",
+        "languages": [
+            {"name": "German", "code": "de"}
+        ]
+    },
+    {
+        "countryName": "Belgium",
+        "countryCode": "BE",
+        "languages": [
+            {"name": "Dutch", "code": "nl"},
+            {"name": "French", "code": "fr"},
+            {"name": "German", "code": "de"}
+        ]
+    },
+    {
+        "countryName": "Brazil",
+        "countryCode": "BR",
+        "languages": [
+            {"name": "Portuguese", "code": "pt"}
+        ]
+    },
+    {
+        "countryName": "Canada",
+        "countryCode": "CA",
+        "languages": [
+            {"name": "English", "code": "en"},
+            {"name": "French", "code": "fr"}
+        ]
+    },
+    {
+        "countryName": "Chile",
+        "countryCode": "CL",
+        "languages": [
+            {"name": "Spanish", "code": "es"}
+        ]
+    },
+    {
+        "countryName": "China",
+        "countryCode": "CN",
+        "languages": [
+            {"name": "Chinese (Simplified)", "code": "zh-CN"}
+        ]
+    },
+    {
+        "countryName": "Colombia",
+        "countryCode": "CO",
+        "languages": [
+            {"name": "Spanish", "code": "es"}
+        ]
+    },
+    {
+        "countryName": "Czech Republic",
+        "countryCode": "CZ",
+        "languages": [
+            {"name": "Czech", "code": "cs"}
+        ]
+    },
+    {
+        "countryName": "Denmark",
+        "countryCode": "DK",
+        "languages": [
+            {"name": "Danish", "code": "da"}
+        ]
+    },
+    {
+        "countryName": "Egypt",
+        "countryCode": "EG",
+        "languages": [
+            {"name": "Arabic", "code": "ar"}
+        ]
+    },
+    {
+        "countryName": "Finland",
+        "countryCode": "FI",
+        "languages": [
+            {"name": "Finnish", "code": "fi"}
+        ]
+    },
+    {
+        "countryName": "France",
+        "countryCode": "FR",
+        "languages": [
+            {"name": "French", "code": "fr"}
+        ]
+    },
+    {
+        "countryName": "Germany",
+        "countryCode": "DE",
+        "languages": [
+            {"name": "German", "code": "de"}
+        ]
+    },
+    {
+        "countryName": "Greece",
+        "countryCode": "GR",
+        "languages": [
+            {"name": "Greek", "code": "el"}
+        ]
+    },
+    {
+        "countryName": "Hong Kong",
+        "countryCode": "HK",
+        "languages": [
+            {"name": "Chinese (Traditional)", "code": "zh-HK"},
+            {"name": "English", "code": "en"}
+        ]
+    },
+    {
+        "countryName": "Hungary",
+        "countryCode": "HU",
+        "languages": [
+            {"name": "Hungarian", "code": "hu"}
+        ]
+    },
+    {
+        "countryName": "India",
+        "countryCode": "IN",
+        "languages": [
+            {"name": "Hindi", "code": "hi"},
+            {"name": "English", "code": "en"}
+        ]
+    },
+    {
+        "countryName": "Indonesia",
+        "countryCode": "ID",
+        "languages": [
+            {"name": "Indonesian", "code": "id"}
+        ]
+    },
+    {
+        "countryName": "Ireland",
+        "countryCode": "IE",
+        "languages": [
+            {"name": "English", "code": "en"}
+        ]
+    },
+    {
+        "countryName": "Israel",
+        "countryCode": "IL",
+        "languages": [
+            {"name": "Hebrew", "code": "he"}
+        ]
+    },
+    {
+        "countryName": "Italy",
+        "countryCode": "IT",
+        "languages": [
+            {"name": "Italian", "code": "it"}
+        ]
+    },
+    {
+        "countryName": "Japan",
+        "countryCode": "JP",
+        "languages": [
+            {"name": "Japanese", "code": "ja"}
+        ]
+    },
+    {
+        "countryName": "Jordan",
+        "countryCode": "JO",
+        "languages": [
+            {"name": "Arabic", "code": "ar"}
+        ]
+    },
+    {
+        "countryName": "Kenya",
+        "countryCode": "KE",
+        "languages": [
+            {"name": "English", "code": "en"},
+            {"name": "Swahili", "code": "sw"}
+        ]
+    },
+    {
+        "countryName": "Korea (South)",
+        "countryCode": "KR",
+        "languages": [
+            {"name": "Korean", "code": "ko"}
+        ]
+    },
+    {
+        "countryName": "Lebanon",
+        "countryCode": "LB",
+        "languages": [
+            {"name": "Arabic", "code": "ar"}
+        ]
+    },
+    {
+        "countryName": "Malaysia",
+        "countryCode": "MY",
+        "languages": [
+            {"name": "Malay", "code": "ms"}
+        ]
+    },
+    {
+        "countryName": "Mexico",
+        "countryCode": "MX",
+        "languages": [
+            {"name": "Spanish", "code": "es"}
+        ]
+    },
+    {
+        "countryName": "Netherlands",
+        "countryCode": "NL",
+        "languages": [
+            {"name": "Dutch", "code": "nl"}
+        ]
+    },
+    {
+        "countryName": "New Zealand",
+        "countryCode": "NZ",
+        "languages": [
+            {"name": "English", "code": "en"}
+        ]
+    },
+    {
+        "countryName": "Nigeria",
+        "countryCode": "NG",
+        "languages": [
+            {"name": "English", "code": "en"}
+        ]
+    },
+    {
+        "countryName": "Norway",
+        "countryCode": "NO",
+        "languages": [
+            {"name": "Norwegian", "code": "no"}
+        ]
+    },
+    {
+        "countryName": "Pakistan",
+        "countryCode": "PK",
+        "languages": [
+            {"name": "Urdu", "code": "ur"},
+            {"name": "English", "code": "en"}
+        ]
+    },
+    {
+        "countryName": "Peru",
+        "countryCode": "PE",
+        "languages": [
+            {"name": "Spanish", "code": "es"}
+        ]
+    },
+    {
+        "countryName": "Philippines",
+        "countryCode": "PH",
+        "languages": [
+            {"name": "English", "code": "en"},
+            {"name": "Tagalog", "code": "tl"}
+        ]
+    },
+    {
+        "countryName": "Poland",
+        "countryCode": "PL",
+        "languages": [
+            {"name": "Polish", "code": "pl"}
+        ]
+    },
+    {
+        "countryName": "Portugal",
+        "countryCode": "PT",
+        "languages": [
+            {"name": "Portuguese", "code": "pt"}
+        ]
+    },
+    {
+        "countryName": "Romania",
+        "countryCode": "RO",
+        "languages": [
+            {"name": "Romanian", "code": "ro"}
+        ]
+    },
+    {
+        "countryName": "Russia",
+        "countryCode": "RU",
+        "languages": [
+            {"name": "Russian", "code": "ru"}
+        ]
+    },
+    {
+        "countryName": "Saudi Arabia",
+        "countryCode": "SA",
+        "languages": [
+            {"name": "Arabic", "code": "ar"}
+        ]
+    },
+    {
+        "countryName": "Singapore",
+        "countryCode": "SG",
+        "languages": [
+            {"name": "English", "code": "en"},
+            {"name": "Chinese", "code": "zh"},
+            {"name": "Malay", "code": "ms"},
+            {"name": "Tamil", "code": "ta"}
+        ]
+    },
+    {
+        "countryName": "South Africa",
+        "countryCode": "ZA",
+        "languages": [
+            {"name": "English", "code": "en"},
+            {"name": "Afrikaans", "code": "af"},
+            {"name": "Zulu", "code": "zu"}
+        ]
+    },
+    {
+        "countryName": "Spain",
+        "countryCode": "ES",
+        "languages": [
+            {"name": "Spanish", "code": "es"}
+        ]
+    },
+    {
+        "countryName": "Sweden",
+        "countryCode": "SE",
+        "languages": [
+            {"name": "Swedish", "code": "sv"}
+        ]
+    },
+    {
+        "countryName": "Switzerland",
+        "countryCode": "CH",
+        "languages": [
+            {"name": "German", "code": "de"},
+            {"name": "French", "code": "fr"},
+            {"name": "Italian", "code": "it"}
+        ]
+    },
+    {
+        "countryName": "Taiwan",
+        "countryCode": "TW",
+        "languages": [
+            {"name": "Chinese (Traditional)", "code": "zh-TW"}
+        ]
+    },
+    {
+        "countryName": "Thailand",
+        "countryCode": "TH",
+        "languages": [
+            {"name": "Thai", "code": "th"}
+        ]
+    },
+    {
+        "countryName": "Turkey",
+        "countryCode": "TR",
+        "languages": [
+            {"name": "Turkish", "code": "tr"}
+        ]
+    },
+    {
+        "countryName": "Ukraine",
+        "countryCode": "UA",
+        "languages": [
+            {"name": "Ukrainian", "code": "uk"},
+            {"name": "Russian", "code": "ru"}
+        ]
+    },
+    {
+        "countryName": "United Arab Emirates",
+        "countryCode": "AE",
+        "languages": [
+            {"name": "Arabic", "code": "ar"}
+        ]
+    },
+    {
+        "countryName": "United Kingdom",
+        "countryCode": "GB",
+        "languages": [
+            {"name": "English", "code": "en"}
+        ]
+    },
+    {
+        "countryName": "United States",
+        "countryCode": "US",
+        "languages": [
+            {"name": "English", "code": "en"}
+        ]
+    },
+    {
+        "countryName": "Venezuela",
+        "countryCode": "VE",
+        "languages": [
+            {"name": "Spanish", "code": "es"}
+        ]
+    },
+    {
+        "countryName": "Vietnam",
+        "countryCode": "VN",
+        "languages": [
+            {"name": "Vietnamese", "code": "vi"}
+        ]
+    }
+]

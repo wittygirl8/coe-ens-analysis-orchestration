@@ -1,0 +1,302 @@
+{
+  "status": 200,
+  "data": {
+    "SearchSummary": {
+      "TotalRecordsFound": 16,
+      "Offset": 0,
+      "RecordsReturned": 16,
+      "DatabaseInfo": {
+        "ReleaseNumber": "334",
+        "UpdateNumber": "334002",
+        "UpdateDate": "2023-03-05T00:00:00",
+        "VersionNumber": "129.00",
+        "IndexationDate": "2023-02-27T00:00:00"
+      },
+      "Sort": {
+        "DESC": "Match.Score"
+      }
+    },
+    "Data": [
+      {
+        "BVDID": "BE0467222076",
+        "MATCH": {
+          "0": {
+            "NAME": "MELEXIS TECHNOLOGIES",
+            "NAME_INTERNATIONAL": null,
+            "ADDRESS": "TRANSPORTSTRAAT 1",
+            "POSTCODE": "3980",
+            "CITY": "TESSENDERLO",
+            "COUNTRY": "BE",
+            "PHONEORFAX": "+32 13 67 07 80",
+            "EMAILORWEBSITE": "melexis.com",
+            "NATIONAL_ID": "1720401-69",
+            "STATE": null,
+            "ADDRESS_TYPE": "Priority address: Registered address / Incorporation address / Legal address",
+            "HINT": "Potential",
+            "SCORE": 0.59
+          }
+        }
+      },
+      {
+        "BVDID": "BE0538526578",
+        "MATCH": {
+          "0": {
+            "NAME": "FLEXIS",
+            "NAME_INTERNATIONAL": null,
+            "ADDRESS": "ROZENDAALSTRAAT 107",
+            "POSTCODE": "8900",
+            "CITY": "IEPER",
+            "COUNTRY": "BE",
+            "PHONEORFAX": "+32 57 21 99 16",
+            "EMAILORWEBSITE": "www.flexis.be",
+            "NATIONAL_ID": "BE0538526578",
+            "STATE": null,
+            "ADDRESS_TYPE": "Priority address: Registered address / Incorporation address / Legal address",
+            "HINT": "Unlikely",
+            "SCORE": 0.52
+          }
+        }
+      },
+      {
+        "BVDID": "BE2099240940",
+        "MATCH": {
+          "0": {
+            "NAME": "MELEXIS TECHNOLOGIES NV",
+            "NAME_INTERNATIONAL": null,
+            "ADDRESS": "TRANSPORTSTRAAT 1",
+            "POSTCODE": "3980",
+            "CITY": "TESSENDERLO",
+            "COUNTRY": "BE",
+            "PHONEORFAX": null,
+            "EMAILORWEBSITE": null,
+            "NATIONAL_ID": null,
+            "STATE": null,
+            "ADDRESS_TYPE": "Priority address",
+            "HINT": "Unlikely",
+            "SCORE": 0.52
+          }
+        }
+      },
+      {
+        "BVDID": "BE0479382413",
+        "MATCH": {
+          "0": {
+            "NAME": "DELISOL",
+            "NAME_INTERNATIONAL": null,
+            "ADDRESS": "ROZENDAALSTRAAT 65",
+            "POSTCODE": "8900",
+            "CITY": "IEPER",
+            "COUNTRY": "BE",
+            "PHONEORFAX": "+32 11 88 70 31",
+            "EMAILORWEBSITE": "info@delisol.be",
+            "NATIONAL_ID": "1806789-89",
+            "STATE": null,
+            "ADDRESS_TYPE": "Priority address: Registered address / Incorporation address / Legal address",
+            "HINT": "Unlikely",
+            "SCORE": 0.48
+          }
+        }
+      },
+      {
+        "BVDID": "BE0881291124",
+        "MATCH": {
+          "0": {
+            "NAME": "T.M.C. MACHINES",
+            "NAME_INTERNATIONAL": null,
+            "ADDRESS": "ROZENDAALSTRAAT 14",
+            "POSTCODE": "8900",
+            "CITY": "IEPER",
+            "COUNTRY": "BE",
+            "PHONEORFAX": "+32 57 22 80 39",
+            "EMAILORWEBSITE": "tmc-machines.com",
+            "NATIONAL_ID": "BE0881291124",
+            "STATE": null,
+            "ADDRESS_TYPE": "Priority address: Registered address / Incorporation address / Legal address",
+            "HINT": "Unlikely",
+            "SCORE": 0.47
+          }
+        }
+      },
+      {
+        "BVDID": "BE0867465654",
+        "MATCH": {
+          "0": {
+            "NAME": "VENTANA",
+            "NAME_INTERNATIONAL": null,
+            "ADDRESS": "ROZENDAALSTRAAT 117 B.D",
+            "POSTCODE": "8900",
+            "CITY": "IEPER",
+            "COUNTRY": "BE",
+            "PHONEORFAX": "+32 57 42 22 70",
+            "EMAILORWEBSITE": "www.ventanausa.com",
+            "NATIONAL_ID": "2.139.504.155",
+            "STATE": null,
+            "ADDRESS_TYPE": "Priority address: Registered address / Incorporation address / Legal address",
+            "HINT": "Unlikely",
+            "SCORE": 0.47
+          }
+        }
+      },
+      {
+        "BVDID": "BE0451172239",
+        "MATCH": {
+          "0": {
+            "NAME": "CABKA BELGIUM",
+            "NAME_INTERNATIONAL": null,
+            "ADDRESS": "ROZENDAALSTRAAT 117",
+            "POSTCODE": "8900",
+            "CITY": "IEPER",
+            "COUNTRY": "BE",
+            "PHONEORFAX": "+32 57 22 91 10",
+            "EMAILORWEBSITE": "cabka.com",
+            "NATIONAL_ID": "BE0451172239",
+            "STATE": null,
+            "ADDRESS_TYPE": "Priority address: Registered address / Incorporation address / Legal address",
+            "HINT": "Unlikely",
+            "SCORE": 0.46
+          }
+        }
+      },
+      {
+        "BVDID": "BE0890657661",
+        "MATCH": {
+          "0": {
+            "NAME": "EXCEET CARD BELGIE",
+            "NAME_INTERNATIONAL": null,
+            "ADDRESS": "ROZENDAALSTRAAT 53",
+            "POSTCODE": "8900",
+            "CITY": "IEPER",
+            "COUNTRY": "BE",
+            "PHONEORFAX": "+32 57 22 44 04",
+            "EMAILORWEBSITE": "www.syx-graphics.com",
+            "NATIONAL_ID": "BE0890657661",
+            "STATE": null,
+            "ADDRESS_TYPE": "Priority address: Registered address / Incorporation address / Legal address",
+            "HINT": "Unlikely",
+            "SCORE": 0.46
+          }
+        }
+      },
+      {
+        "BVDID": "BE0834552168",
+        "MATCH": {
+          "0": {
+            "NAME": "INFRASSIST",
+            "NAME_INTERNATIONAL": null,
+            "ADDRESS": "ROZENDAALSTRAAT 111",
+            "POSTCODE": "8900",
+            "CITY": "IEPER",
+            "COUNTRY": "BE",
+            "PHONEORFAX": "+32 3 663 42 67",
+            "EMAILORWEBSITE": "infrassist.com",
+            "NATIONAL_ID": "BE0834552168",
+            "STATE": null,
+            "ADDRESS_TYPE": "Priority address: Registered address / Incorporation address / Legal address",
+            "HINT": "Unlikely",
+            "SCORE": 0.46
+          }
+        }
+      },
+      {
+        "BVDID": "BE0430184706",
+        "MATCH": {
+          "0": {
+            "NAME": "CABKA",
+            "NAME_INTERNATIONAL": null,
+            "ADDRESS": "ROZENDAALSTRAAT 101",
+            "POSTCODE": "8900",
+            "CITY": "IEPER",
+            "COUNTRY": "BE",
+            "PHONEORFAX": "+32 57 22 91 10",
+            "EMAILORWEBSITE": "www.ips-belgium.com",
+            "NATIONAL_ID": "BE0430184706",
+            "STATE": null,
+            "ADDRESS_TYPE": "Priority address: Registered address / Incorporation address / Legal address",
+            "HINT": "Unlikely",
+            "SCORE": 0.45
+          }
+        }
+      },
+      {
+        "BVDID": "BE0894664850",
+        "MATCH": {
+          "0": {
+            "NAME": "MELEXIS TECHNOLOGIES",
+            "NAME_INTERNATIONAL": null,
+            "ADDRESS": null,
+            "POSTCODE": null,
+            "CITY": null,
+            "COUNTRY": "BE",
+            "PHONEORFAX": "+32 4 132 84 70",
+            "EMAILORWEBSITE": null,
+            "NATIONAL_ID": "0894.664.850",
+            "STATE": null,
+            "ADDRESS_TYPE": "Priority address: Registered address / Incorporation address / Legal address",
+            "HINT": "Unlikely",
+            "SCORE": 0.45
+          }
+        }
+      },
+      {
+        "BVDID": "BE0471442863",
+        "MATCH": {
+          "0": {
+            "NAME": "MELEXIS GMBH",
+            "NAME_INTERNATIONAL": null,
+            "ADDRESS": "TRANSPORTSTRAAT 1 B.42122",
+            "POSTCODE": "3980",
+            "CITY": "TESSENDERLO",
+            "COUNTRY": "BE",
+            "PHONEORFAX": null,
+            "EMAILORWEBSITE": null,
+            "NATIONAL_ID": "0471.442.863",
+            "STATE": null,
+            "ADDRESS_TYPE": "Priority address: Registered address / Incorporation address / Legal address",
+            "HINT": "Unlikely",
+            "SCORE": 0.43
+          }
+        }
+      },
+      {
+        "BVDID": "BE0773321315",
+        "MATCH": {
+          "0": {
+            "NAME": "MELEX",
+            "NAME_INTERNATIONAL": null,
+            "ADDRESS": "RUE DE LA STATION 136",
+            "POSTCODE": "6210",
+            "CITY": "REVES",
+            "COUNTRY": "BE",
+            "PHONEORFAX": null,
+            "EMAILORWEBSITE": null,
+            "NATIONAL_ID": "BE0773321315",
+            "STATE": null,
+            "ADDRESS_TYPE": "Priority address: Registered address / Incorporation address / Legal address",
+            "HINT": "Unlikely",
+            "SCORE": 0.42
+          }
+        }
+      },
+      {
+        "BVDID": "BE0421226161",
+        "MATCH": {
+          "0": {
+            "NAME": "ELEX",
+            "NAME_INTERNATIONAL": null,
+            "ADDRESS": "TIENSESTEENWEG 168 B.C204",
+            "POSTCODE": "3800",
+            "CITY": "SINT-TRUIDEN",
+            "COUNTRY": "BE",
+            "PHONEORFAX": "+32 13 67 07 80",
+            "EMAILORWEBSITE": "www.melexis.com",
+            "NATIONAL_ID": "BE0421226161",
+            "STATE": null,
+            "ADDRESS_TYPE": "Priority address: Registered address / Incorporation address / Legal address",
+            "HINT": "Unlikely",
+            "SCORE": 0.4
+          }
+        }
+      }
+    ]
+  }
+}

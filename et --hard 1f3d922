@@ -1,0 +1,452 @@
+[33mcommit 1f3d9222194eca781deb70da6d0c90e7185dabad[m[33m ([m[1;36mHEAD -> [m[1;32mfeature/supplier-name-validation[m[33m)[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Thu Feb 13 14:07:25 2025 +0530
+
+    Added another package to poetry
+
+[33mcommit 9bb0f6a47adefec2906bc94bb0a218c9f55c9b97[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Thu Feb 13 14:04:03 2025 +0530
+
+    Added dependencies to poetry & removed the .msi file
+
+[33mcommit b2be0a39e10ce92c1a451ca7472f28160e136975[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Wed Feb 12 21:08:09 2025 +0530
+
+    Added summarization with fixes
+
+[33mcommit 1bc6f55a5adcaebd2b8eaa1dceab09c10074df74[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Wed Feb 12 21:06:46 2025 +0530
+
+    # minor additions
+
+[33mcommit 1438ec64addb8b61f011ab07571640b3c37660ec[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Wed Feb 12 20:17:02 2025 +0530
+
+    Added .env variables and updated pydantic settings
+
+[33mcommit c3d56a7b2b301558890f081c0c25e0c64e411fec[m
+Merge: 220efe7 55e7b6c
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Wed Feb 12 15:58:10 2025 +0530
+
+    Runs along with RGC, merged with Develop, ready for PR
+
+[33mcommit 220efe77f3ed38b6126cde168e610fd492a89a7a[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Wed Feb 12 15:29:52 2025 +0530
+
+    Working stage for RGC, reports get populated with data from DB
+
+[33mcommit b9e479f19d0fc00e5178747cfdefedc0ba5a39fa[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Wed Feb 12 12:32:49 2025 +0530
+
+    Added background tasks
+
+[33mcommit 55e7b6c7b1ba05b20974662f4ac4f427d57659c0[m
+Merge: 117ef5d a81e98e
+Author: Elena Elizebeth Thomas <Elena.Thomas@in.ey.com>
+Date:   Wed Feb 12 12:13:04 2025 +0530
+
+    Merge pull request #11 from 20230028426_EYGS/convertget
+    
+    convert to get
+
+[33mcommit a81e98e04bd981de3983e2b2e437b2ad5016c07d[m[33m ([m[1;31morigin/convertget[m[33m)[m
+Author: Riddhi K Singh <Riddhi.Singh@in.ey.com>
+Date:   Wed Feb 12 12:06:20 2025 +0530
+
+    convert to post
+
+[33mcommit 117ef5d179ff428376bad330c418058d5df778a4[m
+Merge: ce3d462 0342b50
+Author: Prakruthi C <Prakruthi.C@in.ey.com>
+Date:   Wed Feb 12 09:49:01 2025 +0530
+
+    Merge pull request #10 from 20230028426_EYGS/TASK-1237735
+    
+    Task 1237735 - analysis submodules / kpi calculations
+
+[33mcommit 0342b5004e29ba575d51353c6f2a1af93e33fcb8[m[33m ([m[1;31morigin/TASK-1237735[m[33m)[m
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Wed Feb 12 09:42:19 2025 +0530
+
+    align with current state of dev
+
+[33mcommit 322eeac3829205dd03ab59bdb4b07eccd2b16491[m
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Wed Feb 12 09:23:33 2025 +0530
+
+    added session to all in analysis.py
+
+[33mcommit 347b429e5239c6b46c9ea796c4f01967ff0da786[m
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Wed Feb 12 09:23:09 2025 +0530
+
+    response was missing somehow, added back
+
+[33mcommit c8f3f5fafbdbf60d52f719d03e3fbe635f84e1ed[m
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Wed Feb 12 09:22:33 2025 +0530
+
+    amendments to formatting, kpi definitions, added json formatting
+
+[33mcommit 6004b9cbf3d75b6c92dd5b713c77e5a2dfb7271f[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Tue Feb 11 18:26:10 2025 +0530
+
+    staging for merge - develop -> feature
+
+[33mcommit ed4a4ced52b077783f5300de4746f47a45500fc4[m
+Merge: 1b14aaa ce3d462
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Tue Feb 11 15:46:58 2025 +0530
+
+    Merge branch 'develop' into TASK-1237735
+
+[33mcommit ce3d462ed90b27beab686beefeeb53a3fcd3b888[m[33m ([m[1;31morigin/feature/streaming-endpoints[m[33m)[m
+Merge: 90ad3cb 2236b79
+Author: Elena Elizebeth Thomas <Elena.Thomas@in.ey.com>
+Date:   Tue Feb 11 13:43:36 2025 +0530
+
+    Merge pull request #9 from 20230028426_EYGS/model_update
+    
+    model update
+
+[33mcommit 2236b79b1e3072838a01d3d8222a0c7bcffaf8f9[m[33m ([m[1;31morigin/model_update[m[33m)[m
+Author: Riddhi K Singh <Riddhi.Singh@in.ey.com>
+Date:   Tue Feb 11 13:39:02 2025 +0530
+
+    model update
+
+[33mcommit 90ad3cba41a7fa0e1f817cd74a4cb4c5814be079[m
+Merge: f60dbe5 f039124
+Author: Riddhi K Singh <Riddhi.Singh@in.ey.com>
+Date:   Tue Feb 11 13:22:33 2025 +0530
+
+    Merge pull request #8 from 20230028426_EYGS/feature/streaming-endpoints
+    
+    Feature/streaming endpoints
+
+[33mcommit f039124bad977d1da087ca23384a56499fd64d9d[m
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Tue Feb 11 13:17:38 2025 +0530
+
+    added current status as a one-time yield
+
+[33mcommit 1b14aaaa8a093b6782e5a2cece94e5eae1c71d03[m
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Tue Feb 11 12:48:12 2025 +0530
+
+    initial commit of submodule refactor (without latest models.py)
+
+[33mcommit 8230350a2491e2bc320b8e3615bd5941b40aedc4[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Mon Feb 10 14:34:10 2025 +0530
+
+    Tested with sandbox payload
+
+[33mcommit 4cadf370f3ad7b76b18773311ff46086a2e7f6ae[m
+Merge: b275872 f60dbe5
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Thu Feb 6 18:47:35 2025 +0530
+
+    Merge remote-tracking branch 'origin/develop' into feature/supplier-name-validation
+
+[33mcommit b27587278bdb68061fe137628badd3aaea6e45d5[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Thu Feb 6 18:38:00 2025 +0530
+
+    Integration v1 - Part 1 - To be tested. Pending: Concurrent functions
+
+[33mcommit f60dbe57914e9dd3024fe1410b8a07c675a9c413[m
+Merge: 2afcfbe 27c93ef
+Author: Riddhi K Singh <Riddhi.Singh@in.ey.com>
+Date:   Thu Feb 6 16:57:40 2025 +0530
+
+    Merge pull request #6 from 20230028426_EYGS/feature/streaming-endpoints
+    
+    adding streaming endpoints
+
+[33mcommit 27c93ef02a4b5a22e1fb36e508668a46993b18c4[m
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Thu Feb 6 16:52:48 2025 +0530
+
+    adding streaming endpoints
+
+[33mcommit 0d3aee74abee70c900f521473b21ab7ae1edeef7[m
+Author: IN010K44386_EYGS <Emil.Gibi@in.ey.com>
+Date:   Thu Feb 6 16:14:37 2025 +0530
+
+    TASK-1237709 Merged
+
+[33mcommit b3c2f567947e15b4bdc36376b34c36335e97130c[m
+Merge: 328f9ef 9abab30
+Author: IN010K44386_EYGS <Emil.Gibi@in.ey.com>
+Date:   Thu Feb 6 16:06:28 2025 +0530
+
+    Merge remote-tracking branch 'origin/TASK-1237709' into TASK-1237735
+    
+    # Conflicts:
+    #       app/core/analysis/analysis_submodules/CYES_analysis.py
+    #       app/core/analysis/analysis_submodules/LGRK_analysis.py
+    #       app/core/analysis/analysis_submodules/RFCT_analysis.py
+
+[33mcommit 506cc60106ae8a93c233cb41efc866a7932e3c80[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Thu Feb 6 14:15:00 2025 +0530
+
+    Data is successfully being updated in DB now. (post Merge issue resolved)
+
+[33mcommit 88094346f874e7cfda2f6bf02d9c7b18016767c4[m
+Merge: 32ebf3b 9816c78
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Thu Feb 6 11:43:42 2025 +0530
+
+    Merge branch 'feature/supplier-name-validation' of https://github.com/20230028426_EYGS/coe-ens-analysis-orchestration into feature/supplier-name-validation
+
+[33mcommit 32ebf3b4bf237f7e2959d915eaa0f3017a877cf4[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Thu Feb 6 11:43:11 2025 +0530
+
+    #
+
+[33mcommit 9816c78dfcf876a995c8399ef5d9e90aac2d6ace[m
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Thu Feb 6 11:12:59 2025 +0530
+
+    pipeline / batch run placeholder
+
+[33mcommit 9abab30ae3b4b76460f49c7e707403a01f2c6ea5[m[33m ([m[1;31morigin/TASK-1237709[m[33m)[m
+Merge: 89ab694 2afcfbe
+Author: AV829TH <parkruthi.c@in.ey.com>
+Date:   Wed Feb 5 20:27:35 2025 +0530
+
+    Merge branch 'develop' into TASK-1237709
+
+[33mcommit 89ab694dc21388c0e6c66e29ec5fb8e17159b95c[m
+Author: AV829TH <parkruthi.c@in.ey.com>
+Date:   Wed Feb 5 20:25:33 2025 +0530
+
+    Added Submodule for Legal, Bribery and Regulation
+
+[33mcommit ff270252cffe28be01fe5a75128fa68b827c70de[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Wed Feb 5 19:30:07 2025 +0530
+
+    #
+
+[33mcommit befb2fb760d520d781fab3e35fe7f6b0cd388841[m
+Merge: dace7e4 2afcfbe
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Wed Feb 5 19:29:45 2025 +0530
+
+    Merged develop branch into feature branch
+
+[33mcommit dace7e4fd98d3ca22504d5d277728f4e1ad55a9f[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Wed Feb 5 19:20:32 2025 +0530
+
+    Updated, Refactored code & tested with dummy and real payload
+
+[33mcommit 328f9ef62605e90df985d56c4573cfd722f1d91f[m
+Merge: 82ff16b 4f1e4e6
+Author: IN010K44386_EYGS <Emil.Gibi@in.ey.com>
+Date:   Wed Feb 5 18:15:30 2025 +0530
+
+    included the kpi definitions and added amr and amo for rfct
+
+[33mcommit 2afcfbe30a2b0b06f050f67f01a90d5f5afb738c[m
+Merge: 8c340ff cfb4f4b
+Author: Elena Elizebeth Thomas <Elena.Thomas@in.ey.com>
+Date:   Wed Feb 5 16:44:07 2025 +0530
+
+    Merge pull request #5 from 20230028426_EYGS/TASK-1261784
+    
+    upsert_status\
+
+[33mcommit cfb4f4b8b115c43d916c6adf8648c2c50435c772[m[33m ([m[1;31morigin/TASK-1261784[m[33m)[m
+Author: Riddhi K Singh <Riddhi.Singh@in.ey.com>
+Date:   Wed Feb 5 16:29:54 2025 +0530
+
+    upsert_status
+
+[33mcommit 5bc098d605073f79811bb5aebe516da1a3752555[m
+Author: Riddhi K Singh <Riddhi.Singh@in.ey.com>
+Date:   Wed Feb 5 16:13:38 2025 +0530
+
+    upsert_status
+
+[33mcommit 8efe6c639150d52ef6978875f6dc3f65e88ed74a[m
+Author: Riddhi K Singh <Riddhi.Singh@in.ey.com>
+Date:   Wed Feb 5 15:12:41 2025 +0530
+
+    upsert_status
+
+[33mcommit 052bd6aef5ff72635a98f2e8ac9448897b1c5ab9[m
+Author: Riddhi K Singh <Riddhi.Singh@in.ey.com>
+Date:   Wed Feb 5 13:49:11 2025 +0530
+
+    upsert_status\
+
+[33mcommit 8c340ff7cdf4b1773780fe9f9931771207a3734c[m
+Author: Riddhi K Singh <Riddhi.Singh@in.ey.com>
+Date:   Wed Feb 5 13:01:46 2025 +0530
+
+    upsert_kpi
+
+[33mcommit bfe38962978c68e7fc5bf5434e7ff2632a97c2d1[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Fri Jan 31 17:11:09 2025 +0530
+
+    Added further checks to expedite validation process
+
+[33mcommit e1babca9020b90f472d8647e65773ce3ec5e3da1[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Thu Jan 30 18:56:34 2025 +0530
+
+    Added orbis match code. Overall status: ToBeTested, schema changes and confirmations required.
+
+[33mcommit 9ba8e9d1ffc9cc0a34f563f5bebea241714812f1[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Wed Jan 29 22:15:23 2025 +0530
+
+    # minor changes
+
+[33mcommit e82edf0eab4aa5bac748dc4413e537f60107ca39[m
+Merge: f79c7b3 afe0654
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Wed Jan 29 21:08:38 2025 +0530
+
+    RGC: Runs/ Fetching data from db: Yes/ saving data locally: Yes/ saving data on blob: Partial (pdf is remaining)
+
+[33mcommit f79c7b31489dbf1ffabdeb5e756a6981fda30fd2[m
+Author: Ajinkya Karnik <Ajinkya.Karnik@in.ey.com>
+Date:   Wed Jan 29 17:04:49 2025 +0530
+
+    Temporary commit
+
+[33mcommit afe0654dcd42fcceca6e457dc75ba53159560712[m
+Merge: 4f1e4e6 bc739bb
+Author: Elena Elizebeth Thomas <Elena.Thomas@in.ey.com>
+Date:   Wed Jan 29 10:49:36 2025 +0530
+
+    Merge pull request #4 from 20230028426_EYGS/TASK-1251398
+    
+    feat: api/finction 5(API 5: NameValidation Confirmation (Final))
+
+[33mcommit bc739bbbc4cae5596ca49f6220bdf87d85979bb3[m[33m ([m[1;31morigin/TASK-1251398[m[33m)[m
+Author: Riddhi K Singh <Riddhi.Singh@in.ey.com>
+Date:   Wed Jan 29 09:18:48 2025 +0530
+
+    feat: api/finction 5(API 5: NameValidation Confirmation (Final))
+
+[33mcommit 82ff16b09d8ae0752b3a03878a452289d778bcab[m
+Author: IN010K44386_EYGS <Emil.Gibi@in.ey.com>
+Date:   Mon Jan 27 14:57:11 2025 +0530
+
+    Modified Analysis for PeP, Sanctions and Cyber
+
+[33mcommit 4f1e4e6cb95e285a03da5baa43e156e40c6adf5a[m
+Author: Riddhi K Singh <Riddhi.Singh@in.ey.com>
+Date:   Fri Jan 24 17:43:28 2025 +0530
+
+    feat : add session
+
+[33mcommit 655ed18e884a6a55531d207b5bcabf39011916c9[m
+Author: IN010K44386_EYGS <Emil.Gibi@in.ey.com>
+Date:   Thu Jan 23 18:33:51 2025 +0530
+
+    Analysis for PeP, Sanctions and Cyber
+
+[33mcommit 383adaaf2531a87e2e74d21add94aa717e0e76e1[m
+Merge: 5654763 f7dfbe1
+Author: Emil Joseph Gibi <Emil.Gibi@in.ey.com>
+Date:   Wed Jan 22 12:32:55 2025 +0530
+
+    Merge pull request #3 from 20230028426_EYGS/1239003-framework
+    
+    1239003 framework
+
+[33mcommit f7dfbe1e56f1614bdf0158f8e8a50bf2fc2d8a12[m[33m ([m[1;31morigin/1239003-framework[m[33m)[m
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Wed Jan 22 12:19:06 2025 +0530
+
+    placeholder for update func
+
+[33mcommit 68b10ceb402e28edfe1184b57a5def287975abcd[m
+Merge: 722a5c1 5654763
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Wed Jan 22 12:16:26 2025 +0530
+
+    Merge remote-tracking branch 'origin/develop' into 1239003-framework
+
+[33mcommit 5654763b59fd9dc641181d59c0fbed0371bbdfc5[m
+Merge: 8179581 3522be5
+Author: Elena Elizebeth Thomas <Elena.Thomas@in.ey.com>
+Date:   Wed Jan 22 12:14:58 2025 +0530
+
+    Merge pull request #2 from 20230028426_EYGS/demo_
+    
+    feat: demo
+
+[33mcommit 3522be529642f2eb59fd1775b75198fa4ded49bf[m[33m ([m[1;31morigin/demo_[m[33m)[m
+Author: Riddhi K Singh <Riddhi.Singh@in.ey.com>
+Date:   Wed Jan 22 12:08:57 2025 +0530
+
+    feat: demo
+
+[33mcommit 722a5c1a2568504491c518e100360c9969cdc664[m
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Wed Jan 22 12:06:41 2025 +0530
+
+    esg rating changes
+
+[33mcommit ff4249d93ecd1582d76a3dbda7e4b4e205b26566[m
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Wed Jan 22 12:06:19 2025 +0530
+
+    supplier name validation dummy example info
+
+[33mcommit 05947efe2723a67671bf6cd71f246cd303e66465[m
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Wed Jan 22 11:20:22 2025 +0530
+
+    modified request schema
+
+[33mcommit 22ff6b563ec325b7fa5f606d79bb0dfe97f2a5ab[m
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Wed Jan 22 10:24:59 2025 +0530
+
+    added supplier name validation analysis endpoint
+
+[33mcommit 52e30d30e8378c72c06b01dc29f96c0aee3b9b85[m
+Author: Elena.Thomas <elena.thomas@in.ey.com>
+Date:   Wed Jan 22 10:14:41 2025 +0530
+
+    added supplier name validation analysis files location
+
+[33mcommit 8179581f53bc75a8b4612c4301cee814459903b3[m
+Merge: 033acae 147ae3b
+Author: Elena Elizebeth Thomas <Elena.Thomas@in.ey.com>
+Date:   Tue Jan 21 17:51:23 2025 +0530
+
+    Merge pull request #1 from 20230028426_EYGS/1244996CRUD
+    
+    feat: CRUD
+
+[33mcommit 147ae3bff49e119fbba0b74b50d37e02eedff4fd[m[33m ([m[1;31morigin/1244996CRUD[m[33m)[m
+Author: Riddhi K Singh <Riddhi.Singh@in.ey.com>
+Date:   Tue Jan 21 16:51:41 2025 +0530
+
+    feat: CRUD
+
+[33mcommit 033acae9ac9a82c6ca20b6a8165bfcda3d7ec41c[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m
+Author: Riddhi K Singh <Riddhi.Singh@in.ey.com>
+Date:   Tue Jan 21 13:38:27 2025 +0530
+
+    feat : start point
