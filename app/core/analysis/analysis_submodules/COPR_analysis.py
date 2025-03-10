@@ -58,7 +58,7 @@ async def company_profile(data, session):
         "legal_status": retrieved_data.get("legal_form"),
         "national_identifier": format_national_identifier(retrieved_data.get("national_identifier")),
         "alias": format_alias(retrieved_data.get("alias")),
-        "incorporation_date": f"{retrieved_data.get("incorporation_date")}" if retrieved_data.get("incorporation_date") else None,
+        "incorporation_date": f"{retrieved_data.get('incorporation_date')}" if retrieved_data.get("incorporation_date") else None,
         "shareholders": format_shareholders(retrieved_data.get("shareholders")),
         "revenue": format_revenue(retrieved_data.get("operating_revenue")),
         "subsidiaries": f"{retrieved_data.get('num_subsidiaries')} entities" if retrieved_data.get("num_subsidiaries") else None,
