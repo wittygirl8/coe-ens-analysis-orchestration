@@ -55,12 +55,12 @@ async def ownership_analysis(data, session):
                 direct = csh.get("direct_ownership", "n.a.")
                 if (total != "n.a.") and ast.literal_eval(total):
                     OWN1A["kpi_value"] = json.dumps(csh)
-                    OWN1A["kpi_details"] = f"Controlling shareholder {csh.get("name")} has total ownership of {total}%"
+                    OWN1A["kpi_details"] = f"Controlling shareholder {csh.get('name')} has total ownership of {total}%"
                     OWN1A["kpi_rating"] = "HIGH"
                     break  # Since only one person can have > 50% control
                 elif (direct != "n.a.") and ast.literal_eval(direct):
                     OWN1A["kpi_value"] = json.dumps(csh)
-                    OWN1A["kpi_details"] = f"Controlling shareholder {csh.get("name")} has direct ownership of {direct}%"
+                    OWN1A["kpi_details"] = f"Controlling shareholder {csh.get('name')} has direct ownership of {direct}%"
                     OWN1A["kpi_rating"] = "HIGH"
                     break  # Since only one person can have > 50% control
         elif shareholders is not None:
@@ -69,12 +69,12 @@ async def ownership_analysis(data, session):
                 direct = sh.get("direct_ownership", "n.a.")
                 if (total != "n.a.") and ast.literal_eval(total):
                     OWN1A["kpi_value"] = json.dumps(sh)
-                    OWN1A["kpi_details"] = f"Shareholder {sh.get("name")} has total ownership of {total}%"
+                    OWN1A["kpi_details"] = f"Shareholder {sh.get('name')} has total ownership of {total}%"
                     OWN1A["kpi_rating"] = "HIGH"
                     break  # Since only one person can have > 50% control
                 elif (direct != "n.a.") and ast.literal_eval(direct):
                     OWN1A["kpi_value"] = json.dumps(sh)
-                    OWN1A["kpi_details"] = f"Shareholder {sh.get("name")} has direct ownership of {direct}%"
+                    OWN1A["kpi_details"] = f"Shareholder {sh.get('name')} has direct ownership of {direct}%"
                     OWN1A["kpi_rating"] = "HIGH"
                     break  # Since only one person can have > 50% control
 
