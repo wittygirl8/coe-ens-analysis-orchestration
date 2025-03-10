@@ -203,7 +203,7 @@ async def trigger_supplier_validation(request: AnalysisRequest, background_tasks
         background_tasks.add_task(run_supplier_name_validation, request.dict(), session)
         trigger_response = TriggerTaskResponse(
             status=True,
-            message=f"Supplier Name Validation Pipeline Triggered For {request.dict().get("session_id")}"
+            message=f"Supplier Name Validation Pipeline Triggered For {request.dict().get('session_id')}"
         )
         return trigger_response
     except Exception as e:
