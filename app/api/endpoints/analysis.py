@@ -56,7 +56,8 @@ async def trigger_analysis_pipeline(request: AnalysisRequest, background_tasks:B
         background_tasks.add_task(run_analysis, request.dict(), session)
         trigger_response = TriggerTaskResponse(
             status=True,
-            message=f"Screening Analysis Pipeline Triggered For {request.dict().get("session_id", "")}")
+            message=f"Screening Analysis Pipeline Triggered For {request.dict().get('session_id', '')}"
+        )
         return trigger_response
 
     except Exception as e:
