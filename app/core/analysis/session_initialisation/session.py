@@ -28,5 +28,37 @@ async def ensid_screening_status_initialisation(session_id_value: str, session):
 
     insert_status = await upsert_ensid_screening_status(ens_ids_rows, session_id_value, session)
     # print(insert_status)
+    container_creation_status=create_container_to_azure_blob(session_id_value)
+    if not container_creation_status:
+        print("ERROR CREATING CONTAINER")  # TODO HANDLE ERROR HERE
 
     return {"ens_id": "", "module": "session_init", "status": "completed"}  # TODO CHANGE THIS
+
+from azure.storage.blob import BlobServiceClient
+import logging
+import os
+def create_container_to_azure_blob(session_id):
+    """
+    Creates the container if it doesn't exist.
+    """
+
+    connection_string = os.getenv("BLOB_STORAGE__CONNECTION_STRING")
+    container_name = session_id
+
+    try:
+        # Initialize the BlobServiceClient
+        blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+
+        # Get the container client
+        container_client = blob_service_client.get_container_client(container_name)
+
+        # Create the container if it does not exist
+        if not container_client.exists():
+            container_client.create_container()
+            logging.info(f"Created container: {container_name}")
+            print("container created")
+        return True
+
+    except Exception as e:
+        logging.error(f"{container_name} container failed to add to Azure Blob Storage. Error: {str(e)}")
+        return False

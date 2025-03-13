@@ -86,7 +86,7 @@ def filter_supplier_data(json_data, max_results:int):
     
     # Check if there are any matches at all
     if not supplier_data:
-        return []
+        return [], False, False
     
     # First, check if there are any 'Selected' matches in the 'HINT' key inside the 'MATCH' dictionary
     selected_matches = [supplier for supplier in supplier_data 
@@ -113,5 +113,5 @@ def filter_supplier_data(json_data, max_results:int):
     # If no 'Selected' or 'Potential' matches with score > 0.80, return the top scoring match
     top_scoring_match = max(supplier_data, key=lambda x: x['MATCH']['0'].get('SCORE', 0))
     
-    return [top_scoring_match], matched, potential_pass
+    return [top_scoring_match], potential_pass, matched
 

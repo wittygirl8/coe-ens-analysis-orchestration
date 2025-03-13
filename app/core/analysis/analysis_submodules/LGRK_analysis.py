@@ -50,31 +50,52 @@ async def legal_analysis(data, session):
 
         # ---------------- LEG1A - Legal Event - Organisation Level
         leg_data = (legal or []) + (grid_legal or [])
-
-        LEG1A["kpi_value"] = json.dumps(leg_data)
-
+        leg_data = sorted(leg_data, key=lambda x: x["eventDate"], reverse=True)
+        legal_lists_direct=[]
+        # LEG1A["kpi_value"] = json.dumps(leg_data)
+        unique_legal_data=set()
         high_risk_rating_trigger = False
-        all_events_detail = []
+        all_events_detail = ''
         for event in leg_data:  # TODO Sort this by date descending and take get the first 5
+            key = (event.get("eventDate"), event.get("eventCategory"), event.get("eventSubCategory"),
+                   event.get("eventDesc"))
+            if key in unique_legal_data:
+                continue
+            unique_legal_data.add(key)
+
             LEG1A["kpi_flag"] = True  # True if any event found
+            event_dict = {
+                "eventdt": event.get("eventDate", "Unavailable"),
+                "eventcat": event.get("eventCategory", ""),
+                "eventsub": event.get("eventSubCategory", ""),
+                "eventDesc": truncate_string(event.get("eventDesc", "")),
+                "categoryDesc": event.get("eventCategoryDesc", "")
+            }
             current_year = datetime.now().year
             try:
-                event_date = datetime.strptime(event.get("eventDt"), "%Y-%m-%d")
+                event_date = datetime.strptime(event.get("eventDate"), "%Y-%m-%d")
                 event_year = current_year - event_date.year
                 if event_year <= 5:
                     high_risk_rating_trigger = True
             except:
                 event_date = "Unavailable"
             text = f"""
-                    {event.get("category")} - {event.get("categoryDesc")} (Date: {event.get("eventDt")})
+                    {event.get("eventCategory")} - {event.get("eventCategoryDesc")} (Date: {event_date})
                     \n
                     {truncate_string(event.get("eventDesc"))}
                     \n
                 """
-            all_events_detail.append(text)
+            legal_lists_direct.append(event_dict)
+            all_events_detail+=text
 
-
+        kpi_value_overall_dict = {
+            "count": len(legal_lists_direct) if len(legal_lists_direct) < 6 else "5 or more",
+            "target": "org",  # Since this is organization level
+            "findings": legal_lists_direct,
+            "themes": [a.get("eventsub") for a in legal_lists_direct]
+        }
         LEG1A["kpi_rating"] = "High" if high_risk_rating_trigger else "Low"
+        LEG1A["kpi_value"] = json.dumps(kpi_value_overall_dict)
         LEG1A["kpi_details"] = json.dumps(all_events_detail)
 
         # ---------------- LEG1B - Legal Event - Person  # TODO PENDING
@@ -87,7 +108,6 @@ async def legal_analysis(data, session):
             print(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
-            print(insert_status)
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure","info": "database_saving_error"}
 
     except Exception as e:

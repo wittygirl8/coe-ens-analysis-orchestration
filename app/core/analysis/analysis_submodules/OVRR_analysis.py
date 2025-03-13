@@ -45,12 +45,12 @@ async def ovrr(data, session):
         esg_medium_trigger = False
         for row in esg:
             if "High" in row.get('kpi_rating'):
-                esg_high_trigger = True
+                esg_medium_trigger = True
                 break
             elif "Medium" in row.get('kpi_rating'):
                 esg_medium_trigger = True
                 break
-        esg_rating = "High" if esg_high_trigger else "Medium" if esg_medium_trigger else "Low"
+        esg_rating = "Medium" if esg_medium_trigger else "Low"
 
         esg_overall = {
             "kpi_area": "theme_rating",
@@ -63,12 +63,12 @@ async def ovrr(data, session):
         cyb_medium_trigger = False
         for row in cyb:
             if "High" in row.get('kpi_rating'):
-                cyb_high_trigger = True
+                cyb_medium_trigger = True
                 break
             elif "Medium" in row.get('kpi_rating'):
                 cyb_medium_trigger = True
                 break
-        cyb_rating = "High" if cyb_high_trigger else "Medium" if cyb_medium_trigger else "Low"
+        cyb_rating = "Medium" if cyb_medium_trigger else "Low"
 
         cyber_overall = {
             "kpi_area": "theme_rating",
@@ -184,9 +184,29 @@ async def ovrr(data, session):
             "kpi_rating": gov_rating
         }
 
+        #-----------------------------
+
+        oval = await get_dynamic_ens_data("oval", required_columns, ens_id_value, session_id_value, session)
+        oval_high_trigger = False
+        oval_medium_trigger = False
+        for row in oval:
+            if "High" in row.get('kpi_rating'):
+                oval_high_trigger = True
+                break
+            elif "Medium" in row.get('kpi_rating'):
+                oval_medium_trigger = True
+                break
+        ownership_rating = "High" if oval_high_trigger else "Medium" if oval_medium_trigger else "Low"
+
+        ownership_overall = {
+            "kpi_area": "theme_rating",
+            "kpi_code": "ownership",
+            "kpi_rating": ownership_rating
+        }
+
 
         ovr_kpis = [government_political_overall, regulatory_legal_overall, bribery_corruption_overall,
-                      other_adverse_media_overall, financials_overall, cyber_overall, esg_overall, sanctions_overall]
+                      other_adverse_media_overall, financials_overall, cyber_overall, esg_overall, sanctions_overall, ownership_overall]
 
         compile_section_ratings = [d.get("kpi_rating","") for d in ovr_kpis]
 

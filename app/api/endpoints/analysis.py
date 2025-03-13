@@ -5,6 +5,7 @@ from app.schemas.responses import AnalysisResponse, BulkAnalysisResponse, Analys
 from app.core.analysis.analysis import *
 from app.core.utils.db_utils import *
 from app.models import *
+import traceback
 
 router = APIRouter()
 
@@ -29,11 +30,8 @@ async def run_analysis_pipeline(request: AnalysisRequest, session: AsyncSession 
             request.dict(),
             session
         )
-        return {
-            "success": True,
-            "message": f"Analysis Pipeline Completed for {request.dict().get('session_id', '')}",
-            "results": []
-        }
+        return {"success": True, "message": f"Analysis Pipeline Completed for {request.dict().get("session_id","")}", results: []}
+
     except Exception as e:
         # Handle errors gracefully
         raise HTTPException(status_code=500, detail=f"Error submitting analysis: {str(e)}")
@@ -56,7 +54,7 @@ async def trigger_analysis_pipeline(request: AnalysisRequest, background_tasks:B
         background_tasks.add_task(run_analysis, request.dict(), session)
         trigger_response = TriggerTaskResponse(
             status=True,
-            message="Screening Analysis Pipeline Triggered For {}".format(request.dict().get("session_id", ""))
+            message=f"Screening Analysis Pipeline Triggered For {request.dict().get("session_id", "")}"
         )
         return trigger_response
 
@@ -203,7 +201,7 @@ async def trigger_supplier_validation(request: AnalysisRequest, background_tasks
         background_tasks.add_task(run_supplier_name_validation, request.dict(), session)
         trigger_response = TriggerTaskResponse(
             status=True,
-            message=f"Supplier Name Validation Pipeline Triggered For {request.dict().get('session_id')}"
+            message=f"Supplier Name Validation Pipeline Triggered For {request.dict().get("session_id")}"
         )
         return trigger_response
     except Exception as e:
@@ -272,7 +270,13 @@ async def generate_report(request: AnalysisRequestSingle, session: AsyncSession 
         return AnalysisResponse(results=analysis_result)
     except Exception as e:
         # Handle errors gracefully
-        raise HTTPException(status_code=500, detail=f"Error running analysis: {str(e)}")
+        # Capture the detailed traceback
+        tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+        
+        # Log or print the traceback for debugging
+        print(tb_str)  # You can replace this with logging (e.g., logger.error(tb_str))
+
+        raise HTTPException(status_code=500, detail=f"Error running analysis: {str(tb_str)}")
 
 # @router.get("/dummy-table")
 # async def get_dummy_table_data(session: AsyncSession = Depends(deps.get_session)):

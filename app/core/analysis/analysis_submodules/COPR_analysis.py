@@ -1,8 +1,9 @@
 from app.core.utils.db_utils import get_dynamic_ens_data
-from app.core.utils.db_utils import insert_dynamic_ens_data
+from app.core.utils.db_utils import *
 
 async def company_profile(data, session):
-    print("Fetching data from external supplier table...")
+
+    print("Performing Company Profile...")
 
     ens_id = data.get("ens_id")
     session_id = data.get("session_id")
@@ -14,7 +15,6 @@ async def company_profile(data, session):
     retrieved_data = await get_dynamic_ens_data("external_supplier_data", required_columns, ens_id,
                                                 session_id, session)
     retrieved_data = retrieved_data[0]
-
     print("Processing retrieved company data...")
 
     def format_alias(items):
@@ -25,8 +25,13 @@ async def company_profile(data, session):
     def format_shareholders(shareholders):
         if isinstance(shareholders, list):
             top_shareholders = shareholders[:7]  # Limit to 7 shareholders
-            return "\n".join(
-                [shareholder.get("name", "") for shareholder in top_shareholders if isinstance(shareholder, dict)])
+            formatted_shareholders = []
+            for shareholder in top_shareholders:
+                if isinstance(shareholder, dict):
+                    name = shareholder.get("name", "")
+                    ownership = shareholder.get("total_ownership", "n.a.")
+                    formatted_shareholders.append(f"{name} ({ownership})")
+            return "\n\n".join(formatted_shareholders)  # Double newline break
         return None
 
     def format_national_identifier(value):
@@ -48,6 +53,19 @@ async def company_profile(data, session):
                 return f"{latest_revenue:.3f} (USD, thousands)"
         return None
 
+    def format_incorporation_date(date):
+        if date:
+            try:
+                return date.strftime("%d/%m/%Y")
+            except AttributeError:
+                from datetime import datetime
+                try:
+                    date_obj = datetime.strptime(date, "%Y-%m-%d")
+                    return date_obj.strftime("%d/%m/%Y")
+                except ValueError:
+                    return date
+        return None
+
     company_data = {
         "name": retrieved_data.get("name"),
         "location": retrieved_data.get("location"),
@@ -58,7 +76,7 @@ async def company_profile(data, session):
         "legal_status": retrieved_data.get("legal_form"),
         "national_identifier": format_national_identifier(retrieved_data.get("national_identifier")),
         "alias": format_alias(retrieved_data.get("alias")),
-        "incorporation_date": f"{retrieved_data.get('incorporation_date')}" if retrieved_data.get("incorporation_date") else None,
+        "incorporation_date": format_incorporation_date(retrieved_data.get("incorporation_date")),
         "shareholders": format_shareholders(retrieved_data.get("shareholders")),
         "revenue": format_revenue(retrieved_data.get("operating_revenue")),
         "subsidiaries": f"{retrieved_data.get('num_subsidiaries')} entities" if retrieved_data.get("num_subsidiaries") else None,
@@ -66,11 +84,8 @@ async def company_profile(data, session):
         "key_executives": management_names(retrieved_data.get("management")),
         "employee": f"{retrieved_data.get('no_of_employee')} employees" if retrieved_data.get("no_of_employee") else None
     }
-
     columns_data = [company_data]
-    print(columns_data)
-    # insert_dynamic_ens_data endpoint
-    result = await insert_dynamic_ens_data("company_profile", columns_data, ens_id, session_id, session)
+    result = await upsert_dynamic_ens_data("company_profile", columns_data, ens_id, session_id, session)
 
     if result.get("status") == "success":
         print("Company profile saved successfully.")

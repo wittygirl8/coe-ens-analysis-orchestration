@@ -28,6 +28,18 @@ async def format_json_report(data, session):
     copr = copr[0]
     main_report_json.update(copr)
 
+    # GET UPLOAD METADATA
+    upload_meta_cols = ["unmodified_name", "unmodified_city", "unmodified_country", "unmodified_address",
+                        "unmodified_national_id"]
+    meta_cols = await get_dynamic_ens_data("upload_supplier_master_data", upload_meta_cols, ens_id_value,
+                                           session_id_value, session)
+    meta_cols = meta_cols[0]
+    print(meta_cols)
+    upload_metadata = {
+        "upload_metadata": meta_cols
+    }
+    main_report_json.update(upload_metadata)
+
     # GET KPIS
     required_columns = ["kpi_area", "kpi_code", "kpi_definition", "kpi_rating", "kpi_flag", "kpi_details"]
     kpi_table_name = ['cyes', 'fstb', 'lgrk', 'oval', 'rfct', 'sape', 'sown']  # news

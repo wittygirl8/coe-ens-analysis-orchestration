@@ -12,8 +12,6 @@ async def populate_profile(incoming_ens_id, incoming_session_id, session):
         session=session
     )
 
-    print(f"\n\nProfile: {profile}")
-
     # Define keys and use `.get()` with a check for None values
     keys = [
         "name", "location", "address", "website", "active_status",
@@ -66,10 +64,10 @@ async def populate_sanctions(incoming_ens_id, incoming_session_id, session):
 
 async def populate_pep(incoming_ens_id, incoming_session_id, session):
     sape = await get_dynamic_ens_data(
-        "sape", 
-        required_columns=["all"], 
-        ens_id=incoming_ens_id, 
-        session_id=incoming_session_id, 
+        "sown",
+        required_columns=["all"],
+        ens_id=incoming_ens_id,
+        session_id=incoming_session_id,
         session=session
     )
     # print(f"\n\PeP: {sape}")
@@ -206,40 +204,111 @@ async def populate_regulatory_legal(incoming_ens_id, incoming_session_id, sessio
     return result
 
 
-async def populate_financials(incoming_ens_id, incoming_session_id, session):
+# async def populate_financials(incoming_ens_id, incoming_session_id, session):
+#     fstb = await get_dynamic_ens_data(
+#         "fstb", 
+#         required_columns=["all"], 
+#         ens_id=incoming_ens_id, 
+#         session_id=incoming_session_id, 
+#         session=session
+#     )
+#     # print(f"\n\nFinancial: {fstb}")
+
+#     # Ensure `fstb` is not empty
+#     if not fstb:
+#         return {"financial": pd.DataFrame(), "bankruptcy": pd.DataFrame()}
+
+#     # Lists to store filtered rows
+#     financial_data = []
+#     bankruptcy_data = []
+
+#     # Loop through the list of dictionaries and categorize rows
+#     for row in fstb:
+#         if row.get("kpi_area") == "FIN" and row.get("kpi_flag") and row.get("kpi_rating") != "INFO":
+#             # if row.get("kpi_code", "").startswith("FIN1"):  # Update condition as needed
+#             financial_data.append(row)
+#     for row in fstb:
+#         if row.get("kpi_area") == "BKR" and row.get("kpi_flag"):  # Update condition as needed
+#             bankruptcy_data.append(row)
+
+#     # Convert lists to DataFrames
+#     financial_df = pd.DataFrame(financial_data)
+#     bankruptcy_df = pd.DataFrame(bankruptcy_data)
+
+#     return {
+#         "financial": financial_df,
+#         "bankruptcy": bankruptcy_df
+#     }
+
+async def populate_financials_risk(incoming_ens_id, incoming_session_id, session):
     fstb = await get_dynamic_ens_data(
-        "fstb", 
-        required_columns=["all"], 
-        ens_id=incoming_ens_id, 
-        session_id=incoming_session_id, 
+        "fstb",
+        required_columns=["all"],
+        ens_id=incoming_ens_id,
+        session_id=incoming_session_id,
         session=session
     )
-    # print(f"\n\nFinancial: {fstb}")
 
     # Ensure `fstb` is not empty
     if not fstb:
-        return {"financial": pd.DataFrame(), "bankruptcy": pd.DataFrame()}
+        return {"financial": pd.DataFrame()}
 
-    # Lists to store filtered rows
+    # List to store all relevant records (both FIN and BKR)
     financial_data = []
-    bankruptcy_data = []
 
-    # Loop through the list of dictionaries and categorize rows
+    # Loop through the list of dictionaries and filter records
     for row in fstb:
-        if row.get("kpi_area") == "FIN" and row.get("kpi_flag"):
-            if row.get("kpi_code", "").startswith("FIN1"):  # Update condition as needed
-                financial_data.append(row)
-            elif row.get("kpi_area") == "BKR" and row.get("kpi_flag"):  # Update condition as needed
-                bankruptcy_data.append(row)
+        if row.get("kpi_area") == "BKR" and row.get("kpi_flag") and row.get("kpi_rating") != "INFO":
+            financial_data.append(row)
 
-    # Convert lists to DataFrames
+    # Convert list to DataFrame
     financial_df = pd.DataFrame(financial_data)
-    bankruptcy_df = pd.DataFrame(bankruptcy_data)
 
-    return {
-        "financial": financial_df,
-        "bankruptcy": bankruptcy_df
-    }
+    if not financial_df.empty:
+        # Define custom sorting order for kpi_rating
+        rating_order = {"High": 1, "Medium": 2, "Low": 3, "Info": 4}
+        
+        # Sort the DataFrame based on kpi_rating priority
+        financial_df["sort_order"] = financial_df["kpi_rating"].map(rating_order).fillna(5)
+        financial_df = financial_df.sort_values(by="sort_order").drop(columns=["sort_order"])
+
+    return {"financial": financial_df}
+
+
+async def populate_financials_value(incoming_ens_id, incoming_session_id, session):
+    fstb = await get_dynamic_ens_data(
+        "fstb",
+        required_columns=["all"],
+        ens_id=incoming_ens_id,
+        session_id=incoming_session_id,
+        session=session
+    )
+
+    # Ensure `fstb` is not empty
+    if not fstb:
+        return {"financial": pd.DataFrame()}
+
+    # List to store all relevant records (both FIN and BKR)
+    financial_data = []
+
+    # Loop through the list of dictionaries and filter records
+    for row in fstb:
+        if row.get("kpi_area") == 'FIN' and row.get("kpi_flag") and row.get("kpi_rating") != "INFO":
+            financial_data.append(row)
+
+    # Convert list to DataFrame
+    financial_df = pd.DataFrame(financial_data)
+
+    if not financial_df.empty:
+        # Define custom sorting order for kpi_rating
+        rating_order = {"High": 1, "Medium": 2, "Low": 3, "Info": 4}
+
+        # Sort the DataFrame based on kpi_rating priority
+        financial_df["sort_order"] = financial_df["kpi_rating"].map(rating_order).fillna(5)
+        financial_df = financial_df.sort_values(by="sort_order").drop(columns=["sort_order"])
+
+    return {"financial": financial_df}
+
 
 async def populate_ownership(incoming_ens_id, incoming_session_id, session):
     sown = await get_dynamic_ens_data(
@@ -257,7 +326,7 @@ async def populate_ownership(incoming_ens_id, incoming_session_id, session):
     direct_ownership_data = []
 
     for row in sown:
-        if row.get("kpi_area") == "SCO" and row.get("kpi_flag"):
+        if row.get("kpi_flag"):
             direct_ownership_data.append(row)
 
 
@@ -309,6 +378,54 @@ async def populate_esg(incoming_ens_id, incoming_session_id, session):
 
     return {
         "esg": pd.DataFrame(esg_data)
+    }
+
+async def populate_country_risk(incoming_ens_id, incoming_session_id, session):
+    cr = await get_dynamic_ens_data(
+        "sown",
+        required_columns=["all"],
+        ens_id=incoming_ens_id,
+        session_id=incoming_session_id,
+        session=session
+    )
+    # print(f"\n\nSown: {sown}")
+
+    if not cr:
+        return {"country_risk": pd.DataFrame()}
+
+    country_risk = []
+
+    for row in cr:
+        if row.get("kpi_area") == "CR" and row.get("kpi_flag"):
+            country_risk.append(row)
+
+
+    return {
+        "country_risk": pd.DataFrame(country_risk)
+    }
+
+async def populate_ownership_flag(incoming_ens_id, incoming_session_id, session):
+    ownf = await get_dynamic_ens_data(
+        "oval",
+        required_columns=["all"],
+        ens_id=incoming_ens_id,
+        session_id=incoming_session_id,
+        session=session
+    )
+    # print(f"\n\nSown: {sown}")
+
+    if not ownf:
+        return {"ownership_flag": pd.DataFrame()}
+
+    ownership_flag = []
+
+    for row in ownf:
+        if row.get("kpi_flag"):
+            ownership_flag.append(row)
+
+
+    return {
+        "ownership_flag": pd.DataFrame(ownership_flag)
     }
 
 

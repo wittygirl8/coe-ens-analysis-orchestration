@@ -237,27 +237,22 @@ async def cyber_analysis(data, session):
 
         # CYB1B - Implied Cyber Risk Rating Based on Implied Risk (IMPLIED)
         if implied_cyber_risk is not None:
-            if implied_cyber_risk == "Very High":
+            if "very high" in implied_cyber_risk.lower():
                 CYB1B["kpi_flag"] = True
                 CYB1B["kpi_value"] = str(implied_cyber_risk)
                 CYB1B["kpi_rating"] = "High"
                 CYB1B["kpi_details"] = f"High Implied Cyber Risk"
-            elif implied_cyber_risk == "High":
+            elif "high" in implied_cyber_risk.lower():
                 CYB1B["kpi_flag"] = True
                 CYB1B["kpi_value"] = str(implied_cyber_risk)
                 CYB1B["kpi_rating"] = "High"
                 CYB1B["kpi_details"] = f"High Implied Cyber Risk"
-            elif implied_cyber_risk == "Medium":
+            elif "medium" in implied_cyber_risk.lower():
                 CYB1B["kpi_flag"] = True
                 CYB1B["kpi_value"] = str(implied_cyber_risk)
                 CYB1B["kpi_rating"] = "Medium"
                 CYB1B["kpi_details"] = f"Medium Implied Cyber Risk"
-            elif implied_cyber_risk == "Low":
-                CYB1B["kpi_flag"] = False
-                CYB1B["kpi_value"] = str(implied_cyber_risk)
-                CYB1B["kpi_rating"] = "Low"
-                CYB1B["kpi_details"] = f"Low Implied Cyber Risk"
-            elif implied_cyber_risk == "Very Low":
+            elif "low" in implied_cyber_risk.lower():
                 CYB1B["kpi_flag"] = False
                 CYB1B["kpi_value"] = str(implied_cyber_risk)
                 CYB1B["kpi_rating"] = "Low"

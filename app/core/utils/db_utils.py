@@ -184,7 +184,55 @@ async def insert_dynamic_ens_data(
         # Catch any other exceptions
         print(f"An unexpected error occurred: {e}")
         return {"error": "An unexpected error occurred", "status": "failure"}
-    
+
+async def upsert_dynamic_ens_data(
+    table_name: str,
+    columns_data: list,
+    ens_id: str,
+    session_id: str,
+    session: AsyncSession = Depends(deps.get_session)
+):
+    try:
+        session = SessionFactory()
+
+        # Get the table class dynamically
+        table_class = Base.metadata.tables.get(table_name)
+        if table_class is None:
+            raise ValueError(f"Table '{table_name}' does not exist in the database schema.")
+
+        # Add `ens_id` and `session_id` to each row in `columns_data`
+        rows_to_insert = [
+            {**row, "ens_id": ens_id, "session_id": session_id}
+            for row in columns_data
+        ]
+
+        # Build the UPSERT query (Insert with conflict handling)
+        query = insert(table_class).values(rows_to_insert).on_conflict_do_update(
+            index_elements=["ens_id"],  # Conflict columns
+            set_={col: getattr(insert(table_class).excluded, col) for col in rows_to_insert[0].keys() if col not in ["ens_id", "session_id"]}
+        )
+
+        # Execute the query
+        await session.execute(query)
+
+        # Commit the transaction
+        await session.commit()
+        await session.close()
+
+        return {"status": "success", "message": f"Upserted {len(rows_to_insert)} rows successfully."}
+
+    except ValueError as ve:
+        print(f"Error: {ve}")
+        return {"error": str(ve), "status": "failure"}
+
+    except SQLAlchemyError as sa_err:
+        print(f"Database error: {sa_err}")
+        return {"error": "Database error", "status": "failure"}
+
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return {"error": "An unexpected error occurred", "status": "failure"}
+
 async def upsert_kpi(
     table_name: str,
     columns_data: list,
@@ -270,7 +318,6 @@ async def upsert_ensid_screening_status(
             index_elements=["ens_id", "session_id"],  # Unique constraint columns
             set_={col: stmt.excluded[col] for col in columns if col not in ["ens_id", "session_id"]}
         ).returning(table_class)
-
         # Execute bulk upsert
         result = await session.execute(stmt)
         await session.commit()

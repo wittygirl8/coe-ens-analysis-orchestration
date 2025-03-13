@@ -71,6 +71,7 @@ async def supplier_name_validation(data, session, search_engine:str):
         try:
             # Generate JWT token
             jwt_token = create_jwt_token("orchestration", "analysis")
+            print("TOKEN:",jwt_token)
         except Exception as e:
             print("Error generating JWT token:", e)
             raise
@@ -84,7 +85,13 @@ async def supplier_name_validation(data, session, search_engine:str):
             "orgCountry": quote(payload["orgCountry"]),
             "sessionId": quote(payload["sessionId"]),
             "ensId": quote(payload["ensId"]),
-            "nationalId": quote(payload["nationalId"])
+            "nationalId": quote(payload["nationalId"]),
+            "state": quote(payload["state"]),
+            "city": quote(payload["city"]),
+            "address": quote(payload["address"]),
+            "postcode": quote(payload["postcode"]),
+            "email": quote(payload["email"]),
+            "phone_or_fax": quote(payload["phone_or_fax"])  
         }
         query_string = "&".join(f"{key}={value}" for key, value in query_params.items())
         url = f"{base_url}?{query_string}"
@@ -96,7 +103,7 @@ async def supplier_name_validation(data, session, search_engine:str):
                 }
                 print("headers", headers)
                 response = requests.get(url, headers=headers)
-
+                print("Passed orbis call")
                 # Raise an error if the response status is not 200
                 if response.status_code != 200:
                     raise requests.HTTPError(f"API request failed with status code {response.status_code}: {response.text}")
@@ -112,10 +119,8 @@ async def supplier_name_validation(data, session, search_engine:str):
 
                 # Extract supplier data from response
                 supplier_data, potential_pass, matched = filter_supplier_data(response_json, max_results=2)
-
                 # Debugging: Print parsed response (only in dev mode)
-                # print("\n\nAPI Parsed JSON >>>", json.dumps(response_json, indent=2))
-
+                print("\n\nAPI Parsed JSON >>>", json.dumps(response_json, indent=2))
                 return supplier_data, potential_pass, matched
 
             except requests.exceptions.RequestException as e:
@@ -129,41 +134,47 @@ async def supplier_name_validation(data, session, search_engine:str):
 
             supplier_data, potential_pass, matched = filter_supplier_data(case_A, max_results=2)
             return supplier_data, potential_pass, matched
+        
+    # TODO: Add more fields here, address, postcode etc. Check with Prakruthi
+    match_payload = {
+        "orgName": str(incoming_name),
+        "orgCountry": str(incoming_country),
+        "ensId": str(incoming_ens_id),
+        "sessionId": str(data["session_id"]),
+        "nationalId":str(national_id),
+        "address": str(data["address"]),
+        "city": str(data["city"]),
+        "postcode": str(data["postcode"]),
+        "email": str(data["email_or_website"]),
+        "phone_or_fax":str(data["phone_or_fax"]),
+        "state": str(data["state"])
+    }   
 
+    supplier_data, potential_pass, matched= get_possible_suppliers(match_payload, static_case=False)
+    log.info(f"[SNV] Matched Status: {matched}")
+    log.info(f"[SNV] Potential pass: {potential_pass}")
+ 
     try:
         
-        # TODO: Add more fields here, address, postcode etc. Check with Prakruthi
-        match_payload = {
-            "orgName": str(incoming_name),
-            "orgCountry": str(incoming_country),
-            "ensId": str(incoming_ens_id),
-            "sessionId": str(data["session_id"]),
-            "nationalId":str(national_id)
-        }   
-
-        supplier_data, matched, potential_pass= get_possible_suppliers(match_payload, static_case=False)
-        log.info(f"[SNV] Matched Status: {matched}")
-        log.info(f"[SNV] Potential pass: {potential_pass}")
-        
         # No match on both L1 and L2
-        if not supplier_data:
+        # if not supplier_data:
             
-            updated_data = {
-                "validation_status": ValidationStatus.VALIDATED,
-                "orbis_matched_status": OribisMatchStatus.NO_MATCH,
-                "truesight_status": TruesightStatus.NO_MATCH.value
-            }
-            update_status = await update_dynamic_ens_data("upload_supplier_master_data", updated_data, ens_id=incoming_ens_id, session_id=session_id, session=session)
-            results = []
-            api_response = {
-                    "ens_id": incoming_ens_id,
-                    "L2_verification": TruesightStatus.NO_MATCH.value,
-                    "L2_confidence": None,
-                    "verification_details": None,
-                    "comments": "There was no data found for this entity"
-                }
-            results.append(api_response)
-            return True, results
+        #     updated_data = {
+        #         "validation_status": ValidationStatus.VALIDATED,
+        #         "orbis_matched_status": OribisMatchStatus.NO_MATCH,
+        #         "truesight_status": TruesightStatus.NO_MATCH
+        #     }
+        #     update_status = await update_dynamic_ens_data("upload_supplier_master_data", updated_data, ens_id=incoming_ens_id, session_id=session_id, session=session)
+        #     results = []
+        #     api_response = {
+        #             "ens_id": incoming_ens_id,
+        #             "L2_verification": TruesightStatus.NO_MATCH,
+        #             "L2_confidence": None,
+        #             "verification_details": None,
+        #             "comments": "There was no data found for this entity"
+        #         }
+        #     results.append(api_response)
+        #     return True, results
 
         if not matched and not potential_pass:
 
@@ -190,7 +201,6 @@ async def supplier_name_validation(data, session, search_engine:str):
 
             analysis = []
             if len(sample.get("data", [])) > 0:
-                print(" something here ")
                 for item in sample["data"]:
                     # print("\n\n News Article :\n\n",item.get("full_article"))
                     url = str(item.get("link"))
@@ -226,53 +236,108 @@ async def supplier_name_validation(data, session, search_engine:str):
                     "token_usage": None
                 }
                 metric = 0.0
-            
-            agg_verified = agg_output['verified']  # This can be True, False, or None
-            # Map the boolean value to the appropriate TruesightStatus enum value
-            if agg_verified == "Yes":
-                truesight_status_value = TruesightStatus.VALIDATED.value
-            elif agg_verified == "No":
-                truesight_status_value = TruesightStatus.NOT_VALIDATED.value
         
-            # Update data for the current supplier
-            updated_data = {
+            # TODO: Worst case scenario - passing out the top scoring element from orbis match
+            if supplier_data:
+
+                temp = supplier_data[0]
+
+                agg_verified = agg_output['verified']  # This can be True, False, or None
+                # Map the boolean value to the appropriate TruesightStatus enum value
+                if agg_verified == "Yes":
+                    truesight_status_value = TruesightStatus.VALIDATED
+                elif agg_verified == "No":
+                    truesight_status_value = TruesightStatus.NOT_VALIDATED
+                    # Update data for the current supplier
+
+                updated_data = {
                 "validation_status": ValidationStatus.VALIDATED,
                 "orbis_matched_status": OribisMatchStatus.NO_MATCH,
                 "truesight_status": truesight_status_value,
-                "matched_percentage": 0,
-                "suggested_bvd_id": "ABCD",
-                "truesight_percentage":int(round(metric * 100, 2)),
-                "suggested_name": incoming_name,
-                "suggested_address": "",
-                "suggested_name_international":"",
-                "suggested_postcode":"",
-                "suggested_city":"",
-                "suggested_country": incoming_country,
-                "suggested_phone_or_fax":"",
-                "suggested_email_or_website":"",
-                "suggested_national_id":"",
-                "suggested_state":"",
-                "suggested_address_type":""
-            }
+                "truesight_percentage":0,
+                "matched_percentage": temp.get('MATCH', {}).get('0', {}).get('SCORE', 0),
+                "suggested_bvd_id": str(temp.get('BVDID', 'N/A')),
+                "suggested_name": str(temp.get('MATCH', {}).get('0', {}).get('NAME', 'N/A')),
+                "suggested_address": str(temp.get('MATCH', {}).get('0', {}).get('ADDRESS', 'N/A')),
+                "suggested_name_international": str(temp.get('MATCH', {}).get('0', {}).get('NAME_INTERNATIONAL', 'N/A')),
+                "suggested_postcode": str(temp.get('MATCH', {}).get('0', {}).get('POSTCODE', 'N/A')),
+                "suggested_city": str(temp.get('MATCH', {}).get('0', {}).get('CITY', 'N/A')),
+                "suggested_country": str(temp.get('MATCH', {}).get('0', {}).get('COUNTRY', 'N/A')),
+                "suggested_phone_or_fax": str(temp.get('MATCH', {}).get('0', {}).get('PHONEORFAX', 'N/A')),
+                "suggested_email_or_website": str(temp.get('MATCH', {}).get('0', {}).get('EMAILORWEBSITE', 'N/A')),
+                "suggested_national_id": str(temp.get('MATCH', {}).get('0', {}).get('NATIONAL_ID', 'N/A')),
+                "suggested_state": str(temp.get('MATCH', {}).get('0', {}).get('STATE', 'N/A')),
+                "suggested_address_type": str(temp.get('MATCH', {}).get('0', {}).get('ADDRESS_TYPE', 'N/A'))
+                }
 
-            duplicate = await check_and_update_unique_value(
+                duplicate = await check_and_update_unique_value(
                 table_name="upload_supplier_master_data",
                 column_name="suggested_bvd_id",
-                bvd_id_to_check="ABCD",
+                bvd_id_to_check=f"{temp.get('BVDID', 'N/A')}",
                 ens_id=incoming_ens_id,
                 session=session
-            )
-            if duplicate["status"] == "unique":
-                updated_data["pre_existing_bvdid"]=False
-            elif duplicate["status"] == "duplicate":
-                updated_data["pre_existing_bvdid"]=True
+                )
 
-            api_response = {
-                "ens_id": incoming_ens_id,
-                "L2_verification": "Required",
-                "L2_confidence": f"{metric * 100:.2f}",
-                "verification_details": updated_data
-            }
+                if duplicate["status"] == "unique":
+                    updated_data["pre_existing_bvdid"]=False
+                elif duplicate["status"] == "duplicate":
+                    updated_data["pre_existing_bvdid"]=True
+
+                api_response = {
+                    "ens_id": incoming_ens_id,
+                    "L2_verification": "Required",
+                    "L2_confidence": f"{metric * 100:.2f}",
+                    "verification_details": updated_data
+                }
+
+            else:
+                # TODO: Truesight will make an api call back to orbis once it finds that entity's unique identifier on the web, but for now: we say [no match - no match] 
+                agg_verified = agg_output['verified']  # This can be True, False, or None
+                # Map the boolean value to the appropriate TruesightStatus enum value
+                if agg_verified == "Yes":
+                    truesight_status_value = TruesightStatus.VALIDATED
+                elif agg_verified == "No":
+                    truesight_status_value = TruesightStatus.NOT_VALIDATED
+                    # Update data for the current supplier
+                updated_data = {
+                    "validation_status": ValidationStatus.NOT_VALIDATED,
+                    "orbis_matched_status": OribisMatchStatus.NO_MATCH,
+                    "truesight_status": TruesightStatus.NO_MATCH,
+                    "matched_percentage": 0,
+                    "suggested_bvd_id": "",
+                    "truesight_percentage":int(round(metric * 100, 2)),
+                    "suggested_name": incoming_name,
+                    "suggested_address": "",
+                    "suggested_name_international":"",
+                    "suggested_postcode":"",
+                    "suggested_city":"",
+                    "suggested_country": incoming_country,
+                    "suggested_phone_or_fax":"",
+                    "suggested_email_or_website":"",
+                    "suggested_national_id":"",
+                    "suggested_state":"",
+                    "suggested_address_type":""
+                }
+
+                duplicate = await check_and_update_unique_value(
+                    table_name="upload_supplier_master_data",
+                    column_name="suggested_bvd_id",
+                    bvd_id_to_check="",
+                    ens_id=incoming_ens_id,
+                    session=session
+                )
+                if duplicate["status"] == "unique":
+                    updated_data["pre_existing_bvdid"]=False
+                elif duplicate["status"] == "duplicate":
+                    updated_data["pre_existing_bvdid"]=True
+
+                api_response = {
+                    "ens_id": incoming_ens_id,
+                    "L2_verification": "Required",
+                    "L2_confidence": f"{metric * 100:.2f}",
+                    "verification_details": updated_data,
+                    "comments":"There is highly unlikely data in the orbis match json."
+                }
 
             # Update database
             update_status = await update_dynamic_ens_data("upload_supplier_master_data", updated_data, ens_id=incoming_ens_id, session_id=data["session_id"], session=session)
@@ -288,7 +353,7 @@ async def supplier_name_validation(data, session, search_engine:str):
             updated_data = {
                 "validation_status": ValidationStatus.VALIDATED,
                 "orbis_matched_status": OribisMatchStatus.MATCH,
-                "truesight_status": TruesightStatus.NOT_REQUIRED.value,
+                "truesight_status": TruesightStatus.NOT_REQUIRED,
                 "truesight_percentage":0,
                 "matched_percentage": temp.get('MATCH', {}).get('0', {}).get('SCORE', 0),
                 "bvd_id": str(temp.get('BVDID', 'N/A')),
@@ -350,7 +415,7 @@ async def supplier_name_validation(data, session, search_engine:str):
         if not matched and not potential_pass:
             api_response = {
                     "ens_id": incoming_ens_id,
-                    "L2_verification": TruesightStatus.NOT_REQUIRED.value,
+                    "L2_verification": TruesightStatus.NOT_REQUIRED,
                     "L2_confidence": None,
                     "verification_details": None,
                     "error": "SupplierNameValidation - {e}"
@@ -358,7 +423,7 @@ async def supplier_name_validation(data, session, search_engine:str):
         else:
             api_response = {
                     "ens_id": incoming_ens_id,
-                    "L2_verification": TruesightStatus.VALIDATED.value, # TODO: NEED TO BE REQUIRED INSTEAD OF VALIDATED
+                    "L2_verification": TruesightStatus.VALIDATED, # TODO: NEED TO BE REQUIRED INSTEAD OF VALIDATED
                     "L2_confidence": None,
                     "verification_details": None,
                     "error": f"SupplierNameValidation - {e}"

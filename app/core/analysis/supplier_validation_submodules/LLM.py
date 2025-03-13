@@ -19,6 +19,7 @@ def run_ts_analysis(client, model, article, name, country, url):
             "   - 'country': The input country.\n"
             "   - 'company': The input company name.\n"
             "   - 'verified': 'Yes' if the article confirms the company's existence and its social presence, otherwise 'No'.\n"
+            # "   - 'ids': Should be a unique identifier number that is found in the article. Which means national ids/ VAT ID/ TAX ID/ Registration ID etc.\n"
             "4. Provide only the JSON object in your response, with no explanations, reasoning, or additional content outside of these rules.\n"
             "5. Check if the URL has the company's name. If the website is the official website for that company or any sub-page within the companies website, you could factor that in since it suggests factual existence."
         )
