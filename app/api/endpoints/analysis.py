@@ -30,7 +30,7 @@ async def run_analysis_pipeline(request: AnalysisRequest, session: AsyncSession 
             request.dict(),
             session
         )
-        return {"success": True, "message": f"Analysis Pipeline Completed for {request.dict().get('session_id',"")}", results: []}
+        return {"success": True, "message": f"Analysis Pipeline Completed for {request.dict().get('session_id','')}", results: []}
 
     except Exception as e:
         # Handle errors gracefully
