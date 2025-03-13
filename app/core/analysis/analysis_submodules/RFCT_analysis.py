@@ -419,7 +419,7 @@ async def bribery_corruption_fraud_analysis(data, session):
                         risk_rating_trigger = True
                 except:
                     event_date = "Unavailable"
-                text = f"{i+1}. {event.get("eventCategoryDesc")}: {event.get("eventSubCategoryDesc")} - {truncate_string(event.get("eventDesc"))} (Date: {event.get("eventDate")})\n"
+                text = f"{i+1}. {event.get('eventCategoryDesc')}: {event.get('eventSubCategoryDesc')} - {truncate_string(event.get("eventDesc"))} (Date: {event.get("eventDate")})\n"
                 bcf_events.append(event_dict)
                 bcf_events_detail += text
                 i+=1
@@ -588,7 +588,7 @@ async def regulatory_analysis(data, session):
                         risk_rating_trigger = True
                 except:
                     event_date = "Unavailable"
-                text = f"{i+1}. {event.get("eventCategoryDesc")}: {event.get("eventSubCategoryDesc")} - {truncate_string(event.get("eventDesc"))}(Date: {event.get("eventDate")})\n"
+                text = f"{i+1}. {event.get('eventCategoryDesc')}: {event.get('eventSubCategoryDesc')} - {truncate_string(event.get("eventDesc"))}(Date: {event.get("eventDate")})\n"
                 reg_events.append(event_dict)
                 reg_events_detail += text
                 i+=1

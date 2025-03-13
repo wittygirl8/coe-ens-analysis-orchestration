@@ -204,7 +204,7 @@ async def orbis_news_analysis(data, session):
                         risk_rating_trigger = True
                 except:
                     event_date = "Unavailable"
-                text = f"{i+1}. {event.get("TITLE")}: {event.get("TOPIC")} - {truncate_string(event.get("ARTICLE"))} (Date: {event.get("DATE")[:10]})\n"
+                text = f"{i+1}. {event.get('TITLE')}: {event.get('TOPIC')} - {truncate_string(event.get("ARTICLE"))} (Date: {event.get("DATE")[:10]})\n"
                 onf_events.append(event_dict)
                 onf_events_detail += text
                 i+=1
