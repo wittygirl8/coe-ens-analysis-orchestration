@@ -18,6 +18,7 @@ async def format_json_report(data, session):
         "ens_id": ens_id_value,
         "session_id": session_id_value
     }
+    print("checkpoint 1")
     main_report_json.update(initial_info)
     # GET COMPANY PROFILE
     copr_required_cols = ["employee", "name", "location", "address", 'website', 'active_status', 'operation_type',
@@ -27,23 +28,24 @@ async def format_json_report(data, session):
     copr = await get_dynamic_ens_data('company_profile', copr_required_cols, ens_id_value, session_id_value, session)
     copr = copr[0]
     main_report_json.update(copr)
-
-    # GET UPLOAD METADATA
-    upload_meta_cols = ["unmodified_name", "unmodified_city", "unmodified_country", "unmodified_address",
-                        "unmodified_national_id"]
-    meta_cols = await get_dynamic_ens_data("upload_supplier_master_data", upload_meta_cols, ens_id_value,
-                                           session_id_value, session)
-    meta_cols = meta_cols[0]
-    print(meta_cols)
+    print("checkpoint 2")
+    # # GET UPLOAD METADATA
+    # upload_meta_cols = ["unmodified_name", "unmodified_city", "unmodified_country", "unmodified_address",
+    #                     "unmodified_national_id"]
+    # meta_cols = await get_dynamic_ens_data("upload_supplier_master_data", upload_meta_cols, ens_id_value,
+    #                                        session_id_value, session)
+    # meta_cols = meta_cols[0]
+    # print(meta_cols)
     upload_metadata = {
-        "upload_metadata": meta_cols
+        "upload_metadata": {}
     }
     main_report_json.update(upload_metadata)
+    print("checkpoint 3")
 
     # GET KPIS
     required_columns = ["kpi_area", "kpi_code", "kpi_definition", "kpi_rating", "kpi_flag", "kpi_details"]
     kpi_table_name = ['cyes', 'fstb', 'lgrk', 'oval', 'rfct', 'sape', 'sown']  # news
-
+    print("checkpoint 4")
     gather_all_kpis = []
     for table_name in kpi_table_name:
         res_kpis = await get_dynamic_ens_data(table_name, required_columns, ens_id_value, session_id_value, session)
@@ -61,7 +63,7 @@ async def format_json_report(data, session):
         "screening_kpis": screening_kpis_dict
     }
     main_report_json.update(screening_kpis)
-
+    print("checkpoint 5")
     aggregated_ratings = {}
     for area, kpis_list in screening_kpis_dict.items():  # this is the compiled all kpis
         # key = kpi_area, value = list of kpis for area

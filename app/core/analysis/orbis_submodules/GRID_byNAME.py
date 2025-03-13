@@ -88,10 +88,21 @@ async def gridbyname_organisation(data, session):
     data = {}
 
     response = requests.request("GET", url, headers=headers, data=data)
+    response_json = response.json()
+    success = response_json.get("success", False)
+    data = False
+    if success == True:
+        data = response_json.get("data", False)
+        if data == '':
+            data = False
+        elif data != False:
+            data = True
+        else:
+            data = False
 
     # Print the response text
     # print(response.text)
 
     print("Performing Orbis GRID for Company ... Completed")
 
-    return {}
+    return {"module": "Grid Grid ID Search", "status": "completed", "success": success, "data": data}

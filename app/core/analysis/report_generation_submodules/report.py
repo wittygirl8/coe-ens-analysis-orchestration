@@ -404,6 +404,7 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
 
         try:
             # Other adverse media
+            context["adv_data"] = []
             oam = await populate_other_adv_media(incoming_ens_id=incoming_ens_id, incoming_session_id=session_id, session=session)
             state_ownership_df = oam["adv_media"]
             if not state_ownership_df.empty:
@@ -692,8 +693,7 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
                 "gov_ownership": "",
                 "financial": "",
                 "adv_media": "",
-                "cybersecurity": "",
-                "esg": "",
+                "additional_indicators": "",
                 "regulatory_and_legal": "",
                 "corporate_ownership": "",
             }
@@ -783,6 +783,12 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
                         context["risk_level"] = row.get("kpi_rating")
                     elif row.get("kpi_code") == "ownership_flag" and row.get("kpi_area") == "theme_rating":
                         context["corporate_ownership"] = row.get("kpi_rating")
+                    elif row.get("kpi_code") == "additional indicator" and row.get("kpi_area") == "theme_rating":
+                        context["additional_indicators_rating"] = row.get("kpi_rating")
+                        print("additional",context["additional_indicators_rating"])
+                    elif row.get("kpi_code") == "web" and row.get("kpi_area") == "theme_rating":
+                        context["web_rating"] = row.get("kpi_rating")
+                        print("web",context["web_rating"])
         else:
             no_ratings = {
                 "sanctions_rating": "None",
@@ -794,7 +800,9 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
                 "esg_rating": "None",
                 "regulatory_and_legal_rating": "None",
                 "corporate_ownership":"None",
-                "risk_level": "None"
+                "risk_level": "None",
+                "web_rating": "None",
+                "additional_indicators_rating": "None"
             }
             context.update(no_ratings)
 
@@ -943,23 +951,23 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
     ############################################################################################################################
 
         # try:
-        #     # Country Risk DataFrame
-        #     country_risk_data = await populate_country_risk(incoming_ens_id=incoming_ens_id,
-        #                                                     incoming_session_id=session_id, session=session)
-        #
-        #     country_risk_df = country_risk_data["country_risk"]
-        #     if not country_risk_df.empty:
-        #         temp = country_risk_data["country_risk"]
-        #         country_risk_data = temp.to_dict(orient='records')
-        #         country_risk_data = remove_time_keys(country_risk_data)
-        #         context["country_risk_findings"] = True
-        #         context["country_risk_data"] = country_risk_data
+        #     # Ownership DataFrame
+        #     other_news_data = await populate_news(incoming_ens_id=incoming_ens_id, incoming_session_id=session_id,
+        #                                               session=session)
+        #     other_news_df = other_news_data["other_news"]
+        #     if not other_news_df.empty:
+        #         temp = other_news_data["other_news"]
+        #         other_news_data = temp.to_dict(orient='records')
+        #         other_news_data = remove_time_keys(other_news_data)
+        #         context["adv_findings"] = True
+        #         context["other_news_findings"] = True
+        #         context["adv_data"].append(other_news_data)
         #     else:
-        #         context["country_risk_findings"] = False
-        #     process_details["populate_sections"]["country_risk"] = "success"
+        #         context["other_news_findings"] = False
+        #     process_details["populate_sections"]["other_news"] = "success"
         # except Exception as e:
         #     tb = traceback.format_exc()
-        #     process_details["populate_sections"]["country_risk"] = str(tb)
+        #     process_details["populate_sections"]["other_news"] = str(tb)
 
     ############################################################################################################################
 
@@ -1033,48 +1041,68 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
 
         ############################################################################################################################
 
-        try:
+        # try:
             # Cybersecurity DataFrame
-            cybersecurity_data = await populate_cybersecurity(incoming_ens_id=incoming_ens_id,
-                                                              incoming_session_id=session_id, session=session)
-            cybersecurity_df = cybersecurity_data["cybersecurity"]
-            if not cybersecurity_df.empty:
-                temp = cybersecurity_data["cybersecurity"]
-                cyb_data = temp.to_dict(orient='records')
-                cyb_data = remove_time_keys(cyb_data)
-                context["cyb_findings"] = True
-                context["cyb_data"] = cyb_data
-            else:
-                context["cyb_findings"] = False
-            process_details["populate_sections"]["cybersecurity"] = "success"
-        except Exception as e:
-            tb = traceback.format_exc()
-            process_details["populate_sections"]["cybersecurity"] = str(tb)
+        #     cybersecurity_data = await populate_cybersecurity(incoming_ens_id=incoming_ens_id,
+        #                                                       incoming_session_id=session_id, session=session)
+        #     cybersecurity_df = cybersecurity_data["cybersecurity"]
+        #     if not cybersecurity_df.empty:
+        #         temp = cybersecurity_data["cybersecurity"]
+        #         cyb_data = temp.to_dict(orient='records')
+        #         cyb_data = remove_time_keys(cyb_data)
+        #         context["cyb_findings"] = True
+        #         context["cyb_data"] = cyb_data
+        #     else:
+        #         context["cyb_findings"] = False
+        #     process_details["populate_sections"]["cybersecurity"] = "success"
+        # except Exception as e:
+        #     tb = traceback.format_exc()
+        #     process_details["populate_sections"]["cybersecurity"] = str(tb)
         # print("Cybersecurity Data:\n", cybersecurity_df)
+
+        ############################################################################################################################
+
+        # try:
+        #     # ESG DataFrame
+        #     esg_data = await populate_esg(incoming_ens_id=incoming_ens_id, incoming_session_id=session_id,
+        #                                   session=session)
+        #     esg_df = esg_data["esg"]
+        #     if not esg_df.empty:
+        #         temp = esg_data["esg"]
+        #         esgdata = temp.to_dict(orient='records')
+        #         esgdata = remove_time_keys(esgdata)
+        #         context["esg_findings"] = True
+        #         context["esg_data"] = esgdata
+        #     else:
+        #         context["esg_findings"] = False
+        #     process_details["populate_sections"]["esg"] = "success"
+        # except Exception as e:
+        #     tb = traceback.format_exc()
+        #     process_details["populate_sections"]["esg"] = str(tb)
+        # # print("ESG Data:\n", esg_df)
 
         ############################################################################################################################
 
         try:
             # ESG DataFrame
-            esg_data = await populate_esg(incoming_ens_id=incoming_ens_id, incoming_session_id=session_id,
-                                          session=session)
-            esg_df = esg_data["esg"]
-            if not esg_df.empty:
-                temp = esg_data["esg"]
-                esgdata = temp.to_dict(orient='records')
-                esgdata = remove_time_keys(esgdata)
-                context["esg_findings"] = True
-                context["esg_data"] = esgdata
+            cyes_data = await populate_cybersecurity(incoming_ens_id=incoming_ens_id,
+                                                            incoming_session_id=session_id, session=session)
+            cybersecurity_df = cyes_data["cybersecurity"]
+            if not cybersecurity_df.empty:
+                temp = cyes_data["cybersecurity"]
+                cyes_data = temp.to_dict(orient='records')
+                cyes_data = remove_time_keys(cyes_data)
+                print("cyes data:", cyes_data)
+                context["additional_indicators_findings"] = True
+                context["additional_indicators_data"]=cyes_data
             else:
-                context["esg_findings"] = False
-            process_details["populate_sections"]["esg"] = "success"
+                context["additional_indicators_findings"] = False
+            process_details["populate_sections"]["additional_indicators"] = "success"
         except Exception as e:
             tb = traceback.format_exc()
-            process_details["populate_sections"]["esg"] = str(tb)
-        # print("ESG Data:\n", esg_df)
+            process_details["populate_sections"]["additional_indicators"] = str(tb)
 
-        ############################################################################################################################
-
+        # print("context:", context)
         # Initialize the document template
         # Fetch `ts_flag` from ts_data
         if ts_data:
@@ -1090,8 +1118,8 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
         context["ens_id"]=incoming_ens_id
         #Call orbis engine endpoint
         print("Retrieving Orbis - Report Generation..")
-        # with open(f"123_{context.get("name")}.json", 'w')as file:
-        #     json.dump(context,file,indent=2)
+        with open(f"123_{context.get("name")}.json", 'w')as file:
+            json.dump(context,file,indent=2)
         try:
             # Generate JWT token
             jwt_token = create_jwt_token("orchestration", "analysis")
@@ -1115,7 +1143,7 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
             process_details["blob"]["docx"] = "failed"
 
 
-        return process_details,response.status_code
+        return process_details, response.status_code
 
     except Exception as e:
         tb = traceback.format_exc()  # Capture the full traceback

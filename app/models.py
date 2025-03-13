@@ -178,6 +178,7 @@ class UploadSupplierMasterData(Base):
     suggested_bvd_id = Column(String, nullable=True)
     pre_existing_bvdid = Column(Boolean, default=False, nullable=False)
     process_status = Column(SQLAlchemyEnum(STATUS), nullable=False, server_default=expression.literal(STATUS.PENDING.value))
+    user_id = Column(String, ForeignKey("users_table.user_id", ondelete="CASCADE"))  # Change to correct PK
 
 class SupplierMasterData(Base):
     __tablename__ = "supplier_master_data"
@@ -411,10 +412,10 @@ class GridManagement(Base):
     grid_bribery_fraud_corruption = Column(JSONB, nullable=True)
     grid_pep = Column(JSONB, nullable=True)
     grid_legal = Column(JSONB, nullable=True)
-
 class CompanyProfile(Base):
     __tablename__ = "company_profile"
-    id = Column(Integer, autoincrement=True)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)  # Primary key added
     name = Column(String, nullable=True)  
     location = Column(String, nullable=True)
     address = Column(String, nullable=True)    
@@ -432,8 +433,11 @@ class CompanyProfile(Base):
     key_executives = Column(Text, nullable=True)    
     employee = Column(String, nullable=True)
     session_id = Column(String(50), nullable=False)
-    ens_id = Column(String(50), primary_key=True, nullable=True)
+    ens_id = Column(String(50), nullable=False)
 
+    __table_args__ = (
+        UniqueConstraint("ens_id", "session_id", name="unique_ensid_session"),
+    )
 
 
 class SentimentPlot(Base):

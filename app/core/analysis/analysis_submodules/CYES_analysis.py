@@ -324,3 +324,64 @@ async def cyber_analysis(data, session):
     except Exception as e:
         print(f"Error in module: {kpi_area_module}: {str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}
+
+
+async def website_analysis(data, session):
+
+    print("Performing Website Analysis...")
+    kpi_area_module = "WEB"
+
+    ens_id_value = data.get("ens_id")
+    session_id_value = data.get("session_id")
+
+    try:
+
+        kpi_template = {
+            "kpi_area": kpi_area_module,
+            "kpi_code": "",
+            "kpi_definition": "",
+            "kpi_flag": False,
+            "kpi_value": None,
+            "kpi_rating": "",
+            "kpi_details": ""
+        }
+
+        WEB1A = kpi_template.copy()
+
+        WEB1A["kpi_code"] = "WEB1A"
+        WEB1A["kpi_definition"] = "Website Presence"
+
+        required_columns = ["website"]
+        retrieved_data = await get_dynamic_ens_data("external_supplier_data", required_columns, ens_id_value, session_id_value, session)
+        retrieved_data = retrieved_data[0]
+
+        website = retrieved_data.get("website")
+        implied_cyber_risk = retrieved_data.get("implied_cyber_risk_score")
+
+
+        if website is None:
+            WEB1A["kpi_flag"] = True
+            WEB1A["kpi_value"] = ""
+            WEB1A["kpi_rating"] = "High"
+            WEB1A["kpi_details"] = "No website found for the organization"
+        else:
+            WEB1A["kpi_flag"] = False
+            WEB1A["kpi_value"] = website
+            WEB1A["kpi_rating"] = "Low"
+            WEB1A["kpi_details"] = "Website found for the organization"
+        web_kpis = [WEB1A]
+        print(f"Completed processing {len(web_kpis)} kpis")
+
+        # Insert KPI into the database
+        insert_status = await upsert_kpi("cyes", web_kpis, ens_id_value, session_id_value, session)
+
+        if insert_status["status"] == "success":
+            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
+        else:
+            print(insert_status)
+            return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": "database_saving_error"}
+
+    except Exception as e:
+        print(f"Error in module: {kpi_area_module}: {str(e)}")
+        return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}

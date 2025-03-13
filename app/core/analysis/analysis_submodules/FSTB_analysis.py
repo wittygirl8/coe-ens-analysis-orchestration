@@ -414,8 +414,9 @@ async def main_financial_analysis(data, session):
             # Retrieve updated KPIs
             ens_id_value = data.get("ens_id")
             session_id_value = data.get("session_id")
-            updated_kpis = await get_dynamic_ens_data("fstb", ens_id_value, session_id_value, session)
-
+            required_column = ["all"]
+            updated_kpis = await get_dynamic_ens_data("fstb",required_column, ens_id_value, session_id_value, session)
+            print("Financial Main completed")
             return {
                 "financial_ratios_analysis": financial_ratios_result,
                 "financials_analysis": financials_result,

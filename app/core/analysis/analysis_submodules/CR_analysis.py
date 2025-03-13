@@ -61,22 +61,22 @@ async def country_risk_analysis(data, session):
             CR1A["kpi_flag"] = True
             CR1A["kpi_value"] = country
             CR1A["kpi_rating"] = "High"
-            CR1A["kpi_details"] = f"The organization in established in {country}"
+            CR1A["kpi_details"] = f"The organization in established in {country.upper()}"
         elif country in medium_risk_countries:
             CR1A["kpi_flag"] = True
             CR1A["kpi_value"] = country
             CR1A["kpi_rating"] = "Medium"
-            CR1A["kpi_details"] = f"The organization in established in {country}"
+            CR1A["kpi_details"] = f"The organization in established in {country.upper()}"
         elif country in low_risk_countries:
             CR1A["kpi_flag"] = True
             CR1A["kpi_value"] = country
             CR1A["kpi_rating"] = "Low"
-            CR1A["kpi_details"] = f"The organization in established in {country}"
+            CR1A["kpi_details"] = f"The organization in established in {country.upper()}"
         else:
-            CR1A["kpi_flag"] = True
+            CR1A["kpi_flag"] = False
             CR1A["kpi_value"] = country
             CR1A["kpi_rating"] = "Info"
-            CR1A["kpi_details"] = f"The organization in established in {country}"
+            CR1A["kpi_details"] = f"The organization in established in {country.upper()}"
 
 
         cr_kpis = [CR1A]

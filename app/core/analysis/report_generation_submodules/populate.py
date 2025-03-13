@@ -134,8 +134,16 @@ async def populate_other_adv_media(incoming_ens_id, incoming_session_id, session
         session_id=incoming_session_id, 
         session=session
     )
-    # print(f"\n\nSanctions: {sape}")
 
+    news = await get_dynamic_ens_data(
+        "news",
+        required_columns=["all"],
+        ens_id=incoming_ens_id,
+        session_id=incoming_session_id,
+        session=session
+    )
+    # print(f"\n\nSanctions: {sape}")
+    rfct+=news
     # Ensure `sape` is not empty
     if not rfct:
         return {"adv_media": pd.DataFrame()}
@@ -145,7 +153,7 @@ async def populate_other_adv_media(incoming_ens_id, incoming_session_id, session
 
     # Loop through the list of dictionaries and categorize rows
     for row in rfct:
-        if row.get("kpi_area") == "AMO" or row.get("kpi_area") == "AMR" and row.get("kpi_flag"):
+        if (row.get("kpi_area") == "AMO" or row.get("kpi_area") == "AMR" or row.get("kpi_area") == "ONF") and row.get("kpi_flag"):
             adv_data.append(row)
     
     if not adv_data:
@@ -343,14 +351,13 @@ async def populate_cybersecurity(incoming_ens_id, incoming_session_id, session):
         session=session
     )
     # print(f"\n\nCyber: {cyb}")
-
     if not cyb:
         return {"cybersecurity": pd.DataFrame()}
 
     cybersecurity_data = []
 
     for row in cyb:
-        if row.get("kpi_area") == "CYB" and row.get("kpi_flag"):
+        if row.get("kpi_flag"):
             cybersecurity_data.append(row)
 
     return {
@@ -426,6 +433,30 @@ async def populate_ownership_flag(incoming_ens_id, incoming_session_id, session)
 
     return {
         "ownership_flag": pd.DataFrame(ownership_flag)
+    }
+
+async def populate_news(incoming_ens_id, incoming_session_id, session):
+    sown = await get_dynamic_ens_data(
+        "news",
+        required_columns=["all"],
+        ens_id=incoming_ens_id,
+        session_id=incoming_session_id,
+        session=session
+    )
+    # print(f"\n\nSown: {sown}")
+
+    if not sown:
+        return {"other_news": pd.DataFrame()}
+
+    other_news_data = []
+
+    for row in sown:
+        if row.get("kpi_flag") and row.get("kpi_area") == "ESG":
+            other_news_data.append(row)
+
+
+    return {
+        "other_news": pd.DataFrame(other_news_data)
     }
 
 
