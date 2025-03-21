@@ -22,10 +22,10 @@ async def populate_profile(incoming_ens_id, incoming_session_id, session):
 
     # Ensure profile is not empty
     if not profile or not isinstance(profile, list) or not profile[0]:
-        return {key: "Not found" for key in keys}
+        return {key: "N/A" for key in keys}
 
     # Return dictionary ensuring no None values
-    return {key: profile[0].get(key, "Not found") if profile[0].get(key) is not None else "Not found" for key in keys}
+    return {key: profile[0].get(key, "N/A") if profile[0].get(key) is not None else "N/A" for key in keys}
 
 # kpi_area, kpi_code, kpi_flag, kpi_value, kpi_details,                     kpi_definition
 # SAN,      SAN1A,      True,       [],      Following sanctions imposed.., Title to the finding 
@@ -153,7 +153,7 @@ async def populate_other_adv_media(incoming_ens_id, incoming_session_id, session
 
     # Loop through the list of dictionaries and categorize rows
     for row in rfct:
-        if (row.get("kpi_area") == "AMO" or row.get("kpi_area") == "AMR" or row.get("kpi_area") == "ONF") and row.get("kpi_flag"):
+        if (row.get("kpi_area") == "AMO" or row.get("kpi_area") == "AMR" or row.get("kpi_area") == "ONF" or row.get("kpi_area") == "NWS") and row.get("kpi_flag"):
             adv_data.append(row)
     
     if not adv_data:
@@ -301,7 +301,7 @@ async def populate_financials_value(incoming_ens_id, incoming_session_id, sessio
 
     # Loop through the list of dictionaries and filter records
     for row in fstb:
-        if row.get("kpi_area") == 'FIN' and row.get("kpi_flag") and row.get("kpi_rating") != "INFO":
+        if row.get("kpi_area") == 'FIN' and row.get("kpi_flag"):
             financial_data.append(row)
 
     # Convert list to DataFrame

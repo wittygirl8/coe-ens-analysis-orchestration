@@ -53,6 +53,7 @@ async def gridbyid_organisation(data, session): #TODO
 
     response = requests.request("GET", url, headers=headers, data=data)
     response_json = response.json()
+    adv_count = response_json.get("adv_count", 0)
     success = response_json.get("success", False)
     data = False
     if success == True:
@@ -74,4 +75,4 @@ async def gridbyid_organisation(data, session): #TODO
 
     print("Performing Orbis GRID for Company ... Completed")
 
-    return {"module": "Orbis Grid Search", "status": "completed", "success": success, "data": data}
+    return {"module": "Orbis Grid Search", "status": "completed", "success": success, "data": data, "adv_count": adv_count}

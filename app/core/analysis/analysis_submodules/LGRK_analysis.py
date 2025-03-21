@@ -4,12 +4,17 @@ from app.core.utils.db_utils import *
 
 async def legal_analysis(data, session):
 
+    module_activation = False
+
     print("Performing Legal Analysis...")
 
     kpi_area_module = "LEG"
 
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
+
+    if not module_activation:
+        return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "module_deactivated"}
 
     try:
 
@@ -57,7 +62,11 @@ async def legal_analysis(data, session):
         high_risk_rating_trigger = False
         all_events_detail = ''
         for event in leg_data:  # TODO Sort this by date descending and take get the first 5
-            key = (event.get("eventDate"), event.get("eventCategory"), event.get("eventSubCategory"),
+
+            if "no" in event.get("eventDate", "").lower():
+                event["eventDate"] = "No Date"
+
+            key = (event.get("eventDate"),
                    event.get("eventDesc"))
             if key in unique_legal_data:
                 continue

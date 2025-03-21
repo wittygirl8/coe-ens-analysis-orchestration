@@ -1,34 +1,37 @@
-# Use a stable Python version
-FROM python:3.10
+FROM python:3.13.1-slim-bookworm as base
 
-# Set working directory
-WORKDIR /app
+ENV PYTHONUNBUFFERED 1
+WORKDIR /build
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    python3-dev \
-    libpq-dev \
-    gcc \
-    libffi-dev
+# Create requirements.txt file
+FROM base as poetry
+RUN pip install poetry==1.8.2
+COPY poetry.lock pyproject.toml ./
+RUN poetry export -o /requirements.txt --without-hashes
 
-# Upgrade pip before installing dependencies
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+FROM base as common
+COPY --from=poetry /requirements.txt .
+# Create venv, add it to path and install requirements
+RUN python -m venv /venv
+ENV PATH="/venv/bin:$PATH"
+RUN pip install -r requirements.txt
 
-# Pre-install bcrypt separately to avoid compilation errors
-RUN pip install --no-cache-dir bcrypt
+# Install uvicorn server
+RUN pip install uvicorn[standard]
 
-# Copy requirements file first to leverage caching
-COPY requirements.txt .
+# Copy the rest of app
+COPY app app
+COPY alembic alembic
+COPY alembic.ini .
+COPY pyproject.toml .
+COPY init.sh .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Create new user to run app process as unprivilaged user
+RUN addgroup --gid 1001 --system uvicorn && \
+    adduser --gid 1001 --shell /bin/false --disabled-password --uid 1001 uvicorn
 
-# Copy the rest of the application files
-COPY . .
-
-# Expose the FastAPI default port
+# Run init.sh script then start uvicorn
+RUN chown -R uvicorn:uvicorn /build
+CMD bash init.sh && \
+    runuser -u uvicorn -- /venv/bin/uvicorn app.main:app --app-dir /build --host 0.0.0.0 --port 8000 --workers 2 --loop uvloop
 EXPOSE 8000
-
-# Run FastAPI with Uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

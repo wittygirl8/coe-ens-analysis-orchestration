@@ -74,6 +74,10 @@ async def sanctions_analysis(data, session):
             details_direct = details_indirect = "Following sanctions imposed :\n"
             risk_rating_trigger_direct = risk_rating_trigger_indirect = False
             for record in sanctions_data:
+
+                if "no" in record.get("eventDate","").lower():
+                    record["eventDate"] = "No Date"
+
                 key = (record.get("eventDate"), record.get("eventCategory"), record.get("eventSubCategory"), record.get("eventDesc"))
                 if key in unique_sanctions_data:
                     continue
@@ -95,7 +99,7 @@ async def sanctions_analysis(data, session):
 
                 sanctions_list_name = record.get("sourceName", "Sanctions Lists") # Give a generic string if we dont have the actual name
                 sanction_details = truncate_string(record.get("eventDesc",""))
-                sanction_entity_name = record.get("entityName", "")
+                sanction_entity_name = record.get("entityName", "").replace("no data", " ").replace("No Data", " ")
 
                 event_dict = {
                     "eventdt": record.get("eventDate", record.get("eventDt", "Unavailable")),
@@ -109,7 +113,7 @@ async def sanctions_analysis(data, session):
                 if event_category in indirect_eventCategory:
                     SAN2A["kpi_flag"] = True
                     date_string = f'{i + 1}. ' + date_string
-                    details_indirect += f"\n{date_string} {event_categoryDesc} - {event_subcategoryDesc}: \n {sanction_details}"
+                    details_indirect += f"\n{date_string} {sanction_entity_name} {event_categoryDesc} - {event_subcategoryDesc}: \n {sanction_details}"
                     sanctions_lists_indirect.append(event_dict)
                     i+=1
                     if sanction_time_period <= 5:
@@ -117,7 +121,7 @@ async def sanctions_analysis(data, session):
                 else:
                     SAN1A["kpi_flag"] = True
                     date_string = f'{j + 1}. ' + date_string
-                    details_direct +=f"\n{date_string} {event_categoryDesc} - {event_subcategoryDesc}: \n {sanction_details}"
+                    details_direct +=f"\n{date_string} {sanction_entity_name} {event_categoryDesc} - {event_subcategoryDesc}: \n {sanction_details}"
                     sanctions_lists_direct.append(event_dict)
                     j+=1
                     if sanction_time_period <= 5:
@@ -194,7 +198,7 @@ async def sanctions_analysis(data, session):
 
                 sanctions_list_name = record.get("sourceName", "Sanctions Lists") # Give a generic string if we dont have the actual name
                 sanction_details = truncate_string(record.get("eventDesc"))
-                sanction_entity_name = record.get("entityName","")
+                sanction_entity_name = record.get("entityName", "").replace("no data", " ").replace("No Data", " ")
 
                 event_dict = {
                     "eventdt": record.get("eventDate", "Unavailable"),
@@ -208,7 +212,7 @@ async def sanctions_analysis(data, session):
                 if event_category in indirect_eventCategory:
                     SAN2B["kpi_flag"] = True
                     date_string =f'{i+1}. '+date_string
-                    details_indirect += f"\n{date_string} {event_categoryDesc} - {event_subcategoryDesc}: \n {sanction_details}"
+                    details_indirect += f"\n{date_string} {sanction_entity_name} {event_categoryDesc} - {event_subcategoryDesc}: \n {sanction_details}"
                     sanctions_lists_indirect.append(event_dict)
                     i+=1
                     if sanction_time_period <= 5:
@@ -216,7 +220,7 @@ async def sanctions_analysis(data, session):
                 else:
                     SAN1B["kpi_flag"] = True
                     date_string = f'{j + 1}. ' + date_string
-                    details_direct += f"\n{date_string} {event_categoryDesc} - {event_subcategoryDesc}: \n {sanction_details}"
+                    details_direct += f"\n{date_string} {sanction_entity_name} {event_categoryDesc} - {event_subcategoryDesc}: \n {sanction_details}"
                     sanctions_lists_direct.append(event_dict)
                     j+=1
                     if sanction_time_period <= 5:

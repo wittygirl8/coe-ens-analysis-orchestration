@@ -3,9 +3,8 @@ from app.core.utils.db_utils import *
 import re
 from datetime import datetime
 import json
-
 async def sape_summary(data, session):
-    required_columns = ["kpi_area", "kpi_flag", "kpi_rating", "kpi_value"]
+    required_columns = ["kpi_area", "kpi_flag", "kpi_rating", "kpi_value", "kpi_code"]
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
 
@@ -14,28 +13,42 @@ async def sape_summary(data, session):
         return ["No notable sanction findings for the entity."]
 
     summary_sentences = []
-    sanctions_found = False
+    main_sanctions_found = False
+    san3a_findings_found = False
 
     target_mapping = {
         "org": "organisation",
         "person": "individuals associated with this entity"
     }
 
+    # Process main sanctions
     for record in retrieved_data:
         kpi_area = record.get("kpi_area", "").strip().lower()
         kpi_flag = record.get("kpi_flag")
         kpi_rating = record.get("kpi_rating")
+        kpi_code = record.get("kpi_code")
         kpi_values = record.get("kpi_value")
 
+        if kpi_area == "san" and kpi_code == "SAN3A":
+            continue
         if kpi_area != "san" or not kpi_flag or kpi_rating not in ["High", "Medium", "Low"]:
             continue
-
         try:
             kpi_values_json = json.loads(kpi_values)
         except json.JSONDecodeError:
             continue
 
-        count = kpi_values_json.get("count", 0)
+        count_str = kpi_values_json.get("count", "0")
+        if count_str == "5 or more":
+            count = 5
+            count_display = "5 or more"
+        else:
+            try:
+                count = int(count_str)
+                count_display = str(count)
+            except (ValueError, TypeError):
+                count = 0
+                count_display = "0"
         target = kpi_values_json.get("target", "").lower()
         findings = kpi_values_json.get("findings", [])
         if not findings:
@@ -60,13 +73,11 @@ async def sape_summary(data, session):
             else:
                 processed_findings.append({"date": None, "desc": event_desc, "entityName": entity_name})
 
-        # Sort findings by date (if available), with entries without dates at the end
         processed_findings.sort(key=lambda x: x["date"] if x["date"] else datetime.min, reverse=True)
 
         if count > 0:
-            # Map target to the desired output
             target_display = target_mapping.get(target, target)
-            summary = f"There are {count} sanction events"
+            summary = f"There are {count_display} sanction events"
             if target in ["org", "person"]:
                 summary += f" for the {target_display}."
             else:
@@ -84,11 +95,43 @@ async def sape_summary(data, session):
                     else:
                         summary += f"- {entity_name}: {event_desc}\n" if entity_name else f"- {event_desc}\n"
             summary_sentences.append(summary)
-            sanctions_found = True
+            main_sanctions_found = True
 
-    if not sanctions_found:
+    # Process SAN3A
+    for record in retrieved_data:
+        kpi_area = record.get("kpi_area", "").strip().lower()
+        kpi_flag = record.get("kpi_flag")
+        kpi_code = record.get("kpi_code")
+        kpi_values = record.get("kpi_value")
+        print('-----------',kpi_area,kpi_flag,kpi_code)
+        if kpi_area == "san" and kpi_code == "SAN3A" and kpi_flag:
+            if not kpi_values:
+                continue
+            try:
+                kpi_values_json = json.loads(kpi_values)
+                count_str = kpi_values_json.get("count", "0")
+                if count_str == "5 or more":
+                    count = 5
+                    count_display = "5 or more"
+                else:
+                    try:
+                        count = int(count_str)
+                        count_display = str(count)
+                    except (ValueError, TypeError):
+                        count = 0
+                        count_display = "0"
+                if count > 0:
+                    summary = f"There are {count_display} potential sanctions findings within the corporate group."
+                    summary_sentences.append(summary)
+                    san3a_findings_found = True
+            except json.JSONDecodeError as e:
+                continue
+
+    if not main_sanctions_found and not san3a_findings_found:
         summary_sentences.append("No notable sanction findings for the entity.")
+    print("fefwefwefwefwewf", summary_sentences)
     return summary_sentences
+
 
 async def bcf_summary(data, session):
     required_columns = ["kpi_area", "kpi_flag", "kpi_rating", "kpi_value"]
@@ -123,20 +166,24 @@ async def bcf_summary(data, session):
             kpi_values_json = json.loads(kpi_values)
         except json.JSONDecodeError:
             continue
-        try:
-            count = int(kpi_values_json.get("count", 0))
-        except (ValueError, TypeError):
-            count = 0
+
+        count_str = kpi_values_json.get("count", "0")
+        if count_str == "5 or more":
+            count = 5
+            count_display = "5 or more"
+        else:
+            try:
+                count = int(count_str)
+                count_display = str(count)
+            except (ValueError, TypeError):
+                count = 0
+                count_display = "0"
 
         target = kpi_values_json.get("target", "").lower()
         findings = kpi_values_json.get("findings", [])
 
         if not findings:
             continue
-        if target in ["org", "organization"]:
-            entity_type = "organization"
-        elif target in ["person"]:
-            entity_type = "individual"
 
         earliest_year = None
         processed_findings = []
@@ -156,11 +203,15 @@ async def bcf_summary(data, session):
         processed_findings.sort(key=lambda x: x["date"], reverse=True)
         if count > 0:
             bcf_has_findings = True
-            summary = f"There are {count} Bribery, Corruption, or Fraud findings"
+            summary = f"There are {count_display} Bribery, Corruption, or Fraud findings"
+
             if target == "org":
                 summary += " for the organisation."
             elif target == "person":
                 summary += " for the individuals associated with this entity."
+            else:
+                summary += " for this entity."
+
             if earliest_year:
                 summary += f" The findings has been since {earliest_year}."
             if processed_findings:
@@ -176,12 +227,13 @@ async def bcf_summary(data, session):
         summary_sentences.append(f"No notable Bribery, Corruption, or Fraud findings for this {entity_type}.")
 
     if not summary_sentences:
-        return ["No notable BCF findings for this entity."]
+        return ["No notable Bribery/Corruption/Fraud findings for this entity."]
 
+    print("bcf findings are:", summary_sentences)
     return summary_sentences
 
 async def state_ownership_summary(data, session):
-    required_columns = ["kpi_area", "kpi_definition", "kpi_flag", "kpi_rating", "kpi_details", "kpi_value"]
+    required_columns = ["kpi_area", "kpi_definition", "kpi_flag", "kpi_code", "kpi_rating", "kpi_details", "kpi_value"]
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
 
@@ -189,6 +241,8 @@ async def state_ownership_summary(data, session):
 
     summary_sentences = []
     pep_found = False
+    pep3a_found = False
+    country_risk_found = False
 
     # Process State Ownership data
     if all_data:
@@ -205,10 +259,14 @@ async def state_ownership_summary(data, session):
             if kpi_flag:
                 summary_sentences.append(f" High risk identified for the entity: {kpi_definition}")
             else:
-                summary_sentences.append(f" {kpi_rating} risk identified for the entity: {kpi_details}")
+                summary_sentences.append(f"{kpi_details}")
 
     # Process PEP data
     if all_data:
+        pep_findings = []
+        count_display = "0"
+        target = ""
+
         for record in all_data:
             kpi_area = record.get("kpi_area", "").strip().lower()
             kpi_flag = record.get("kpi_flag")
@@ -217,67 +275,128 @@ async def state_ownership_summary(data, session):
 
             if kpi_area != "pep" or not kpi_flag or kpi_rating not in ["High", "Medium", "Low"]:
                 continue
+
             try:
                 kpi_values_json = json.loads(kpi_values)
             except json.JSONDecodeError as e:
                 print("JSON Parsing Error:", e, kpi_values)
                 continue
 
-            count = kpi_values_json.get("count", 0)
+            count_str = kpi_values_json.get("count", "0")
+            if count_str == "5 or more":
+                count = 5
+                count_display = "5 or more"
+            else:
+                try:
+                    count = int(count_str)
+                    count_display = str(count)
+                except (ValueError, TypeError):
+                    count = 0
+                    count_display = "0"
+
             target = kpi_values_json.get("target", "").lower()
             findings = kpi_values_json.get("findings", [])
+
             if count > 0:
                 pep_found = True
+
             if not findings or count <= 0:
                 continue
-            earliest_year = None
-            processed_findings = []
+
             for finding in findings:
                 eventdt = finding.get("eventdt")
                 event_desc = finding.get("eventDesc", "").strip()
-                if eventdt and eventdt != 'No event date available':
-                    try:
-                        event_date = datetime.strptime(eventdt, "%Y-%m-%d")
-                        event_year = event_date.year
-                        if earliest_year is None or event_year < earliest_year:
-                            earliest_year = event_year
-                        entity_name = finding.get("entityName", "Unknown Entity")
-                        processed_findings.append({"date": event_date, "desc": event_desc, "entityName": entity_name})
-                    except ValueError:
-                        pass
-                else:
-                    entity_name = finding.get("entityName", "Unknown Entity")
-                    processed_findings.append({"date": None, "desc": event_desc, "entityName": entity_name})
+                entity_name = finding.get("entityName", "Unknown Entity").strip()
 
-            processed_findings.sort(key=lambda x: x["date"] if x["date"] else datetime.min, reverse=True)
+                if event_desc and entity_name != "Unknown Entity":
+                    if eventdt and eventdt != 'No event date available':
+                        try:
+                            event_date = datetime.strptime(eventdt, "%Y-%m-%d")
+                            event_year = event_date.year
+                            pep_findings.append({"date": event_date, "desc": event_desc, "entityName": entity_name})
+                        except ValueError:
+                            pass
+                    else:
+                        pep_findings.append({"date": None, "desc": event_desc, "entityName": entity_name})
 
-            if count > 0:
-                summary = f"There are {count} PEP findings"
-                if target == "org":
-                    summary += " for the organisation."
-                elif target == "person":
-                    summary += " for the individuals associated with this entity."
-                else:
-                    summary += "."
-                if earliest_year:
-                    summary += f" The findings have been since {earliest_year}."
-                if processed_findings:
-                    summary += " Some of the most recent PEP events include:\n"
-                    for finding in processed_findings[:2]:
-                        event_desc = finding["desc"]
-                        entity_name = finding.get("entityName", "Unknown Entity")
-                        if finding["date"]:
-                            event_year = finding["date"].year
-                            summary += f"- In {event_year}, {entity_name}: {event_desc}\n"
-                        else:
-                            summary += f"- {entity_name}: {event_desc}\n"
-                summary_sentences.append(summary)
+        if pep_findings:
+            pep_findings.sort(key=lambda x: x["date"] if x["date"] else datetime.min, reverse=True)
+            summary = f"There are {count_display} PEP findings"
+            if target == "org":
+                summary += " for the organisation."
+            elif target == "person":
+                summary += " for the individuals associated with this entity."
+            else:
+                summary += "."
 
-    if not summary_sentences or (len(summary_sentences) == 0 and not pep_found):
+            if pep_findings:
+                summary += " Some of the most recent PEP events include:\n"
+                for finding in pep_findings[:2]:  # Only show the top 2 findings
+                    event_desc = finding["desc"]
+                    entity_name = finding["entityName"]
+                    if finding["date"]:
+                        event_year = finding["date"].year
+                        summary += f"- In {event_year}, {entity_name}: {event_desc}\n"
+                    else:
+                        summary += f"- {entity_name}: {event_desc}\n"
+            summary_sentences.append(summary)
+
+    # Process PEP3A findings
+    if all_data:
+        for record in all_data:
+            kpi_area = record.get("kpi_area", "").strip().lower()
+            kpi_flag = record.get("kpi_flag")
+            kpi_code = record.get("kpi_code")
+            kpi_values = record.get("kpi_value")
+
+            if kpi_area == "pep" and kpi_code == "PEP3A" and kpi_flag:
+                try:
+                    kpi_values_json = json.loads(kpi_values)
+                    count_str = kpi_values_json.get("count", "0")
+                    if count_str == "5 or more":
+                        count = 5
+                        count_display = "5 or more"
+                    else:
+                        try:
+                            count = int(count_str)
+                            count_display = str(count)
+                        except (ValueError, TypeError):
+                            count = 0
+                            count_display = "0"
+
+                    if count > 0:
+                        pep3a_found = True
+                        summary = f"There are {count_display} potential PEP findings within the corporate group."
+                        summary_sentences.append(summary)
+                except json.JSONDecodeError:
+                    continue
+
+    # Process Country Risk data
+    country_risk_profile_activate = False
+    if all_data and country_risk_profile_activate:
+        for record in all_data:
+            kpi_area = record.get("kpi_area", "").strip().lower()
+            kpi_flag = record.get("kpi_flag")
+            kpi_rating = record.get("kpi_rating")
+            kpi_definition = record.get("kpi_definition")
+
+            if kpi_area != "cr":
+                continue
+            if kpi_flag and kpi_rating in ["High", "Medium"]:  # Only process if rating is High or Medium
+                country_risk_found = True
+                if kpi_rating == "High":
+                    summary_sentences.append(f"High risk identified for the country: {kpi_definition}")
+                elif kpi_rating == "Medium":
+                    summary_sentences.append(f"Moderate risk identified for the country: {kpi_definition}")
+
+    if not summary_sentences or (len(summary_sentences) == 0 and not pep_found and not pep3a_found and not country_risk_found):
         summary_sentences.append("No state ownership information available for the entity.")
-    if not pep_found:
+    if not pep_found and not pep3a_found:
         summary_sentences.append("No PEP findings for the individual.")
+
+    print('State ownership, pep and CR:',summary_sentences)
     return summary_sentences
+
 
 async def financials_summary(data, session):
     required_columns = ["kpi_area", "kpi_definition", "kpi_flag", "kpi_rating", "kpi_details"]
@@ -313,13 +432,13 @@ async def financials_summary(data, session):
     return summary_sentences
 
 async def adverse_media_summary(data, session):
-    required_columns = ["kpi_area", "kpi_flag", "kpi_rating", "kpi_value"]
+    required_columns = ["kpi_area", "kpi_flag", "kpi_code", "kpi_rating", "kpi_value"]
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
 
     retrieved_data = await get_dynamic_ens_data("rfct", required_columns, ens_id_value, session_id_value, session)
-
-    if not retrieved_data:
+    other_news = await get_dynamic_ens_data("news", required_columns, ens_id_value, session_id_value, session)
+    if not retrieved_data and not other_news:
         return ["No adverse media findings for this entity."]
 
     summary_sentences = []
@@ -327,10 +446,20 @@ async def adverse_media_summary(data, session):
     amo_processed = False
     amr_has_findings = False
     amo_has_findings = False
+    amr2a_has_findings = False
+    amo2a_has_findings = False
+    nws_or_onf_findings = False
 
-    entity_type = "entity"
+    # Process main AMR and AMO findings
     for record in retrieved_data:
+
+        kpi_area = record.get("kpi_area", "").strip().lower()
+        kpi_flag = record.get("kpi_flag")
+        kpi_rating = record.get("kpi_rating")
         kpi_values = record.get("kpi_value")
+        kpi_code = record.get("kpi_code")
+
+        entity_type = "entity"
         if not isinstance(kpi_values, str):
             continue
         try:
@@ -338,19 +467,14 @@ async def adverse_media_summary(data, session):
             target = kpi_values_json.get("target", "").lower()
             if target == "org":
                 entity_type = "organization"
-                break
             elif target == "person" and entity_type != "organization":
                 entity_type = "individuals associated with this entity"
         except json.JSONDecodeError:
             continue
 
-    for record in retrieved_data:
-        kpi_area = record.get("kpi_area", "").strip().lower()
-        kpi_flag = record.get("kpi_flag")
-        kpi_rating = record.get("kpi_rating")
-        kpi_values = record.get("kpi_value")
-
         if kpi_area not in ["amr", "amo"]:
+            continue
+        if kpi_code == "AMR2A":
             continue
         if kpi_area == "amr":
             amr_processed = True
@@ -363,10 +487,18 @@ async def adverse_media_summary(data, session):
             kpi_values_json = json.loads(kpi_values)
         except json.JSONDecodeError:
             continue
-        try:
-            count = int(kpi_values_json.get("count", 0))
-        except (ValueError, TypeError):
-            count = 0
+
+        count_str = kpi_values_json.get("count", "0")
+        if count_str == "5 or more":
+            count = 5
+            count_display = "5 or more"
+        else:
+            try:
+                count = int(count_str)
+                count_display = str(count)
+            except (ValueError, TypeError):
+                count = 0
+                count_display = "0"
 
         findings = kpi_values_json.get("findings", [])
 
@@ -392,14 +524,14 @@ async def adverse_media_summary(data, session):
         if count > 0:
             if kpi_area == "amr":
                 amr_has_findings = True
-                summary = f"There are {count} adverse media reputation risk findings"
+                summary = f"There are {count_display} adverse media reputation risk findings"
             elif kpi_area == "amo":
                 amo_has_findings = True
-                summary = f"There are {count} adverse media criminal activity findings"
+                summary = f"There are {count_display} adverse media criminal activity findings"
 
             summary += f" for this {entity_type}."
             if earliest_year:
-                summary += f" The findings has been since {earliest_year}."
+                summary += f" The findings have been since {earliest_year}."
 
             if processed_findings:
                 summary += " Some of the most recent media events include: \n"
@@ -410,77 +542,123 @@ async def adverse_media_summary(data, session):
 
             summary_sentences.append(summary)
 
+    # Check for NWS1A and ONF1A if no AMR or AMO findings
     if not amr_has_findings and not amo_has_findings:
-        summary_sentences.append(f"No adverse media findings for this {entity_type}.")
-    elif not amo_has_findings:
-        summary_sentences.append(f"No adverse media criminal findings for this {entity_type}.")
+        for record in other_news:
+            kpi_code = record.get("kpi_code", "").strip().upper()
+            kpi_flag = record.get("kpi_flag")
+            kpi_rating = record.get("kpi_rating")
 
-    if not summary_sentences:
-        return ["No adverse media findings for this entity."]
-
-    return summary_sentences
-
-async def cybersecurity_summary(data, session):
-    required_columns = ["kpi_area", "kpi_code", "kpi_flag", "kpi_details"]
-    ens_id_value = data.get("ens_id")
-    session_id_value = data.get("session_id")
-
-    retrieved_data = await get_dynamic_ens_data("cyes", required_columns, ens_id_value, session_id_value, session)
-
-    if not retrieved_data:
-        return ["No cybersecurity findings available."]
-
-    summary_sentences = []
-
-    for record in retrieved_data:
-        kpi_area = record.get("kpi_area", "").strip().lower()
-        kpi_code = record.get("kpi_code", "").strip()
-        kpi_flag = record.get("kpi_flag")
-        kpi_details = record.get("kpi_details")
-
-        if kpi_area != "cyb" or kpi_code != "CYB2A":
-            continue
-
-        # Process CYB2A record
-        if kpi_details:
-            summary_sentences.append(kpi_details)
-
-    if not summary_sentences:
-        summary_sentences.append("No cybersecurity findings available.")
-
-    return summary_sentences
-
-async def esg_summary(data, session):
-    required_columns = ["kpi_area", "kpi_code", "kpi_flag", "kpi_details"]
-    ens_id_value = data.get("ens_id")
-    session_id_value = data.get("session_id")
-
-    retrieved_data = await get_dynamic_ens_data("cyes", required_columns, ens_id_value, session_id_value, session)
-
-    if not retrieved_data:
-        return ["No ESG data available."]
-
-    summary_sentences = []
-
-    for record in retrieved_data:
-        kpi_area = record.get("kpi_area", "").strip().lower()
-        kpi_code = record.get("kpi_code", "").strip()
-        kpi_flag = record.get("kpi_flag")
-        kpi_details = record.get("kpi_details")
-
-        if kpi_area != "esg" or kpi_code != "ESG1A":
-            continue
-
-        if kpi_flag:
-            if kpi_details:
-                summary_sentences.append(kpi_details)
+            if kpi_code == "NWS1A" and kpi_flag and kpi_rating == "High": #TODO CHANGE (LATER) REMOVE H/M/L Logic everywhere from summary once satisfied that kpi_flag represents whether to show in report or not
+                summary_sentences.append("There are potential adverse news findings from the advanced screening.")
+                nws_or_onf_findings = True
+                break
         else:
-            summary_sentences.append("No ESG score available.")
+            # If no NWS1A, check for ONF1A
+            for record in other_news:
+                kpi_code = record.get("kpi_code", "").strip().upper()
+                kpi_flag = record.get("kpi_flag")
+                kpi_rating = record.get("kpi_rating")
 
-    if not summary_sentences:
-        summary_sentences.append("No ESG data available.")
+                if kpi_code == "ONF1A" and kpi_flag and kpi_rating == "High":
+                    summary_sentences.append("There are other potential news findings.")
+                    nws_or_onf_findings = True
+                    break
 
+    # Process additional AMR2A findings
+    for record in retrieved_data:
+        kpi_area = record.get("kpi_area", "").strip().lower()
+        kpi_flag = record.get("kpi_flag")
+        kpi_code = record.get("kpi_code")
+        kpi_values = record.get("kpi_value")
+
+        if kpi_code in ["AMR2A"] and kpi_flag:
+            try:
+                kpi_values_json = json.loads(kpi_values)
+                count_str = kpi_values_json.get("count", "0")
+                if count_str == "5 or more":
+                    count = 5
+                    count_display = "5 or more"
+                else:
+                    try:
+                        count = int(count_str)
+                        count_display = str(count)
+                    except (ValueError, TypeError):
+                        count = 0
+                        count_display = "0"
+
+                if count > 0:
+                    if kpi_code == "AMR2A":
+                        amr2a_has_findings = True
+                        summary = f"There are also further {count_display} adverse media reputation risk findings within the corporate group."
+                        summary_sentences.append(summary)
+            except json.JSONDecodeError:
+                continue
+
+    if not amr_has_findings and not amo_has_findings and not amr2a_has_findings and not amo2a_has_findings and not nws_or_onf_findings:
+        summary_sentences.append(f"No adverse media findings.")
+
+    print("AMO and AMR are;", summary_sentences)
     return summary_sentences
+
+async def additional_indicators_summary(data, session):
+    required_columns = ["kpi_area", "kpi_code", "kpi_flag", "kpi_rating", "kpi_details"]
+    ens_id_value = data.get("ens_id")
+    session_id_value = data.get("session_id")
+
+    retrieved_data = await get_dynamic_ens_data("cyes", required_columns, ens_id_value, session_id_value, session)
+
+    if not retrieved_data:
+        return ["No findings available for cybersecurity, ESG, or website."]
+
+    cyb_findings = False
+    esg_findings = False
+    website_findings = False
+    strong_profile = False
+
+    for record in retrieved_data:
+        kpi_area = record.get("kpi_area", "").strip().lower()
+        kpi_code = record.get("kpi_code", "").strip()
+        kpi_flag = record.get("kpi_flag", False)
+        kpi_rating = record.get("kpi_rating", "").strip().lower()
+
+        if kpi_area == "cyb" and kpi_code == "CYB2A":
+            if kpi_flag:
+                if kpi_rating == "low":
+                    strong_profile = True
+                elif kpi_rating in ["medium", "high"]:
+                    cyb_findings = True
+
+        if kpi_area == "esg" and kpi_code == "ESG1A":
+            if kpi_flag:
+                if kpi_rating == "low":
+                    strong_profile = True
+                elif kpi_rating in ["medium", "high"]:
+                    esg_findings = True
+
+        if kpi_area == "web" and kpi_code == "WEB1A":
+            if kpi_flag and kpi_rating == "high":
+                website_findings = True
+
+    result = []
+
+    if strong_profile:
+        result.append("The entity has a strong profile in cybersecurity and ESG.")
+    elif cyb_findings or esg_findings:
+        findings = []
+        if cyb_findings:
+            findings.append("cybersecurity")
+        if esg_findings:
+            findings.append("ESG")
+        result.append(f"There are notable findings in {', '.join(findings)} screening/profiling for this entity.")
+        print("There are findings for ESG or Cyber")
+    if website_findings:
+        result.append("There are notable findings in website screening/profiling for this entity.")
+        print("There are findings for WEB")
+    if not result:
+        result.append("No notable findings in screening/profiling of ESG, cybersecurity, or website for this entity.")
+        print("There are no findings for ESG and Cyber")
+    return result
 
 async def legal_regulatory_summary(data, session):
     required_columns = ["kpi_area", "kpi_flag", "kpi_rating", "kpi_value"]
@@ -497,131 +675,144 @@ async def legal_regulatory_summary(data, session):
     reg_processed = False
     leg_has_findings = False
     reg_has_findings = False
-    entity_type = "entity"  # Default value
 
-    # Determine entity type from all records first before processing findings
-    def determine_entity_type(records):
-        nonlocal entity_type
+    # Process legal and regulatory findings
+    for record in leg_data + rfct_data:
+        kpi_area = record.get("kpi_area", "").strip().lower()
+        kpi_flag = record.get("kpi_flag")
+        kpi_rating = record.get("kpi_rating")
+        kpi_values = record.get("kpi_value")
 
-        for record in records:
-            kpi_values = record.get("kpi_value")
-            if not isinstance(kpi_values, str):
-                continue
+        entity_type = "entity"
+        if not isinstance(kpi_values, str):
+            continue
+        try:
+            kpi_values_json = json.loads(kpi_values)
+            target = kpi_values_json.get("target", "").lower()
+            if target == "org":
+                entity_type = "organization"
+            elif target == "person" and entity_type != "organization":
+                entity_type = "individuals associated with this entity"
+        except json.JSONDecodeError:
+            continue
 
+        if kpi_area not in ["leg", "reg"]:
+            continue
+        if kpi_area == "leg":
+            leg_processed = True
+        elif kpi_area == "reg":
+            reg_processed = True
+
+        if not kpi_flag or kpi_rating not in ["High", "Medium", "Low"]:
+            continue
+        try:
+            kpi_values_json = json.loads(kpi_values)
+        except json.JSONDecodeError:
+            continue
+
+        count_str = kpi_values_json.get("count", "0")
+        if count_str == "5 or more":
+            count = 5
+            count_display = "5 or more"
+        else:
             try:
-                kpi_values_json = json.loads(kpi_values)
-                if isinstance(kpi_values_json, list) and kpi_values_json:
-                    kpi_values_json = kpi_values_json[0]
-
-                target = kpi_values_json.get("target", "").lower()
-                if target in ["org", "organization"]:
-                    entity_type = "organization"
-                    return
-                elif target == "person" and entity_type != "organization":
-                    entity_type = "individuals associated with this entity"
-            except json.JSONDecodeError:
-                continue
-
-    determine_entity_type(leg_data)
-    if entity_type != "organization":
-        determine_entity_type(rfct_data)
-
-    def process_records(records, expected_area, is_legal=False):
-        nonlocal leg_processed, reg_processed, leg_has_findings, reg_has_findings
-
-        for record in records:
-            kpi_area = record.get("kpi_area", "").strip().lower()
-            kpi_flag = record.get("kpi_flag")
-            kpi_rating = record.get("kpi_rating")
-            kpi_values = record.get("kpi_value")
-
-            if kpi_area != expected_area:
-                continue
-            if is_legal:
-                leg_processed = True
-            else:
-                reg_processed = True
-            if not kpi_flag or kpi_rating not in ["High", "Medium", "Low"]:
-                continue
-            try:
-                kpi_values_json = json.loads(kpi_values)
-                if isinstance(kpi_values_json, list) and kpi_values_json:  # If it's a list, take the first element
-                    kpi_values_json = kpi_values_json[0]
-            except json.JSONDecodeError:
-                continue
-            try:
-                count = int(kpi_values_json.get("count", 0))
+                count = int(count_str)
+                count_display = str(count)
             except (ValueError, TypeError):
                 count = 0
-            findings = kpi_values_json.get("findings", [])
-            if not findings:
-                continue
+                count_display = "0"
 
-            earliest_year = None
-            processed_findings = []
-            for finding in findings:
-                eventdt = finding.get("eventdt")
-                event_desc = finding.get("eventDesc", "").strip()
-                if eventdt:
-                    try:
-                        event_date = datetime.strptime(eventdt, "%Y-%m-%d")
-                        event_year = event_date.year
-                        if earliest_year is None or event_year < earliest_year:
-                            earliest_year = event_year
-                        processed_findings.append({"date": event_date, "desc": event_desc})
-                    except ValueError:
-                        pass
-            processed_findings.sort(key=lambda x: x["date"], reverse=True)
+        findings = kpi_values_json.get("findings", [])
+        if not findings:
+            continue
 
-            if count > 0:
-                if is_legal:
-                    leg_has_findings = True
-                    summary = f"There are {count} legal findings"
-                else:
-                    reg_has_findings = True
-                    summary = f"There are {count} regulatory findings"
+        earliest_year = None
+        processed_findings = []
+        for finding in findings:
+            eventdt = finding.get("eventdt")
+            event_desc = finding.get("eventDesc", "").strip()
+            if eventdt:
+                try:
+                    event_date = datetime.strptime(eventdt, "%Y-%m-%d")
+                    event_year = event_date.year
+                    if earliest_year is None or event_year < earliest_year:
+                        earliest_year = event_year
+                    processed_findings.append({"date": event_date, "desc": event_desc})
+                except ValueError:
+                    pass
 
-                summary += f" for this {entity_type}."
+        processed_findings.sort(key=lambda x: x["date"], reverse=True)
 
-                if earliest_year:
-                    summary += f" The findings has been since {earliest_year}."
-                if processed_findings:
-                    summary += " Some of the most recent events include: \n"
-                    for finding in processed_findings[:2]:  # Use the 2 most recent events
-                        event_year = finding["date"].year
-                        event_desc = finding["desc"]
-                        summary += f"- In {event_year}, {event_desc}\n"
+        if count > 0:
+            if kpi_area == "leg":
+                leg_has_findings = True
+                summary = f"There are {count_display} legal findings"
+            elif kpi_area == "reg":
+                reg_has_findings = True
+                summary = f"There are {count_display} regulatory findings"
 
-                summary_sentences.append(summary)
+            summary += f" for this {entity_type}."
+            if earliest_year:
+                summary += f" The findings have been since {earliest_year}."
 
-    process_records(leg_data, "leg", is_legal=True)
-    process_records(rfct_data, "reg")
+            if processed_findings:
+                summary += " Some of the most recent events include: \n"
+                for finding in processed_findings[:2]:  # Use the 2 most recent events
+                    event_year = finding["date"].year
+                    event_desc = finding["desc"]
+                    summary += f"- In {event_year}, {event_desc}\n"
+
+            summary_sentences.append(summary)
 
     if leg_processed and not leg_has_findings:
-        summary_sentences.append(f"No legal findings for this {entity_type}.")
+        summary_sentences.append(f"No legal findings available")
     if reg_processed and not reg_has_findings:
-        summary_sentences.append(f"No regulatory findings for this {entity_type}.")
+        summary_sentences.append(f"No regulatory findings available")
     if not summary_sentences:
         return ["No legal or regulatory findings available."]
 
+    print('The leg and reg are :', summary_sentences)
     return summary_sentences
 
+def capitalize_after_full_stop(text):
+    """
+    Capitalize the first letter of a word after a full stop.
+    """
+    sentences = text.split('. ')
+    sentences = [sentence[0].upper() + sentence[1:] if sentence else '' for sentence in sentences]
+    return '. '.join(sentences)
+
+def enforce_lowercase(text):
+    """
+    Ensures all words in the text are lowercase unless they are proper nouns or acronyms.
+    """
+    return text.lower()
 
 async def overall_summary(data, session, supplier_name):
-    required_columns = ["kpi_code", "kpi_area", "kpi_rating"]
+    required_columns = ["kpi_code", "kpi_area", "kpi_rating", "kpi_flag"]
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
 
     retrieved_data = await get_dynamic_ens_data("ovar", required_columns, ens_id_value, session_id_value, session)
+    website_data = await get_dynamic_ens_data("cyes", ["kpi_area", "kpi_flag", "kpi_code", "kpi_rating"], ens_id_value, session_id_value, session)
 
+    supplier_name = supplier_name.upper()
     if isinstance(retrieved_data, str):
         import json
         retrieved_data = json.loads(retrieved_data)
     elif not isinstance(retrieved_data, list):
         retrieved_data = [retrieved_data]
 
+    if isinstance(website_data, str):
+        import json
+        website_data = json.loads(website_data)
+    elif not isinstance(website_data, list):
+        website_data = [website_data]
+
     theme_ratings = {}
     overall_rating = None
+    country_risk_high = False
+    website_rating = "Low"
 
     for row in retrieved_data:
         if not isinstance(row, dict):
@@ -636,17 +827,30 @@ async def overall_summary(data, session, supplier_name):
             theme_ratings[kpi_code] = kpi_rating
         elif kpi_area == "overall_rating" and kpi_code == "supplier":
             overall_rating = kpi_rating
+        elif kpi_area == "CR" and kpi_rating == "High":
+            country_risk_high = True
+        elif kpi_area == "WEB":
+            website_rating = kpi_rating
 
     if overall_rating is None:
         overall_rating = "Low"
 
-    # Map the KPI codes to the module names
+    website_available = True
+    website_high_risk = False
+
+    for row in website_data:
+        if (isinstance(row, dict) and
+                row.get("kpi_area") == "WEB" and
+                row.get("kpi_code") == "WEB1A" and
+                row.get("kpi_rating") == "High" and
+                row.get("kpi_flag") is True):  # Flag has to be TRUE
+            website_high_risk = True
+            break
+
     module_ratings = {
         "Financials": theme_ratings.get("financials", "Low"),
         "Adverse Media (Reputation)": theme_ratings.get("other_adverse_media", "Low"),
         "Adverse Media (Other)": theme_ratings.get("other_adverse_media", "Low"),
-        "Cybersecurity": theme_ratings.get("cyber", "Low"),
-        "ESG": theme_ratings.get("esg", "Low"),
         "Bribery, Corruption & Fraud": theme_ratings.get("bribery_corruption_overall", "Low"),
         "State Ownership": theme_ratings.get("government_political", "Low"),
         "Legal": theme_ratings.get("regulatory_legal", "Low"),
@@ -655,10 +859,15 @@ async def overall_summary(data, session, supplier_name):
         "PEP": theme_ratings.get("government_political", "Low")
     }
 
+    cyber_rating = theme_ratings.get("cyber", "Low")
+    esg_rating = theme_ratings.get("esg", "Low")
+
+    has_additional_indicators = (cyber_rating == "Medium" or esg_rating == "Medium" or
+                                 country_risk_high or (not website_available and website_rating == "High"))
+
     important_modules = {k: v for k, v in module_ratings.items() if v in ["High", "Medium"]}
 
-    # If no high/medium risks, include at least one low-risk module for balance
-    if not important_modules:
+    if not important_modules and not has_additional_indicators:
         import random
         low_modules = {k: v for k, v in module_ratings.items() if v == "Low"}
         if low_modules:
@@ -683,7 +892,98 @@ async def overall_summary(data, session, supplier_name):
         f"According to our risk framework, {supplier_name} is classified as {overall_rating.lower()} risk"
     ]
 
-    #  module based phrasings
+    country_risk_templates = [
+        "The entity is based in a high-risk jurisdiction requiring enhanced due diligence",
+        "Operations in a high-risk country present significant compliance concerns",
+        "The company's high-risk jurisdiction location presents notable regulatory challenges",
+        "Significant country risk has been identified due to the entity's geographical presence",
+        "The entity's location in a high-risk jurisdiction warrants additional scrutiny",
+        "Geographical risk factors are elevated due to operations in a high-risk territory",
+        "The supplier's high-risk country of operation introduces significant compliance considerations",
+        "Notable jurisdictional risk has been identified in the company's operational locations",
+        "The entity's presence in a high-risk territory presents substantial compliance challenges",
+        "High geographical risk factors have been identified in the company's country of operation",
+        "The company operates within a high-risk jurisdiction requiring careful monitoring",
+        "Significant country-based risk factors affect the entity's compliance profile",
+        "The supplier's high-risk jurisdictional presence warrants enhanced oversight",
+        "Elevated territorial risk has been identified in the company's operational footprint",
+        "The entity's high-risk geographical location presents notable compliance implications"
+    ]
+
+    no_website_templates = [
+        "No official website could be identified for this entity",
+        "The company appears to have no verifiable online presence",
+        "Our research could not locate an official website for this organization",
+        "The entity lacks a discoverable web presence during our assessment",
+        "No corporate website was found during the supplier evaluation process",
+        "The company does not appear to maintain an official online presence",
+        "Our evaluation was unable to locate a verifiable website for this entity",
+        "The organization has no identifiable web presence based on our research",
+        "No digital footprint in the form of an official website was discovered",
+        "The supplier does not maintain a discoverable corporate website",
+        "Our assessment found no evidence of an official online presence",
+        "No digital presence in the form of a corporate website was identified",
+        "The entity lacks a formal website based on our digital assessment",
+        "Our research could not verify an official web presence for this supplier",
+        "No corporate website was discovered during the due diligence process"
+    ]
+
+    # Cyber-only templates
+    cyber_only_templates = [
+        "There are notable findings in cybersecurity screening for this entity",
+        "The assessment identified moderate concerns in the entity's cyber risk profile",
+        "Our evaluation highlights potential vulnerabilities in the company's cybersecurity posture",
+        "The supplier shows moderate risk indicators in their cyber resilience framework",
+        "The entity's cybersecurity defenses present moderate concerns requiring attention",
+        "Notable observations were made regarding the company's digital protection measures",
+        "The assessment found moderate risk factors in cyber protection implementations",
+        "Our review identified potential improvement areas in the entity's cyber preparedness",
+        "The entity demonstrates moderate risk indicators in their digital security protocols",
+        "The evaluation discovered notable concerns in information security practices",
+        "Our analysis reveals moderate risk in cyber resilience capabilities",
+        "The assessment identified noteworthy findings in the company's digital protection framework",
+        "The supplier shows moderate concerns in their cybersecurity implementation strategies",
+        "Our examination found notable cyber vulnerability indicators requiring oversight",
+        "The entity presents moderate risk in their information security measures"
+    ]
+
+    # ESG-only templates
+    esg_only_templates = [
+        "There are notable findings in social governance screening for this entity",
+        "The assessment identified moderate concerns in the entity's social governance profile",
+        "Our evaluation highlights potential gaps in environmental, social and governance practices",
+        "The supplier shows moderate risk indicators in their social governance compliance",
+        "The entity's social governance framework presents moderate concerns requiring attention",
+        "Notable observations were made regarding the company's sustainability standards",
+        "The assessment found moderate risk factors in social governance implementation",
+        "Our review identified potential improvement areas in social governance integration",
+        "The entity demonstrates moderate risk indicators in their sustainability practices",
+        "The evaluation discovered notable concerns in environmental governance protocols",
+        "The assessment identified noteworthy findings in the company's sustainability framework",
+        "The supplier shows moderate concerns in their environmental standards compliance",
+        "Our examination found notable social governance implementation gaps",
+        "The entity presents moderate risk in their social responsibility measures"
+    ]
+
+    # Both cyber and ESG templates
+    cyber_esg_templates = [
+        "There are notable findings in both cybersecurity and social governance screening for this entity",
+        "The assessment identified moderate concerns in the entity's cyber risk and social governance profiles",
+        "Our evaluation highlights potential vulnerabilities in both environmental governance and cybersecurity practices",
+        "The supplier shows moderate risk indicators in social governance compliance and cyber resilience",
+        "The entity's social governance framework and cybersecurity posture both present moderate concerns",
+        "Notable observations were made regarding the company's sustainability standards and cyber defenses",
+        "The assessment found moderate risk factors in both social governance implementation and cyber protection",
+        "Our review identified potential improvement areas in both social governance integration and cyber preparedness",
+        "The entity demonstrates moderate risk indicators in both sustainability practices and digital security",
+        "The evaluation discovered notable concerns in both environmental governance and information security protocols",
+        "Our analysis reveals moderate risk in both corporate responsibility metrics and cyber resilience capabilities",
+        "The assessment identified noteworthy findings in both sustainability practices and digital protection frameworks",
+        "The supplier shows moderate concerns in both environmental standards and cybersecurity implementations",
+        "Our examination found notable gaps in both social governance implementation and cyber vulnerability management",
+        "The entity presents moderate risk in both social responsibility measures and information security controls"
+    ]
+
     module_contexts = {
         "Financials": [
             "affecting operational viability",
@@ -735,40 +1035,6 @@ async def overall_summary(data, session, supplier_name):
             "uncovered by watchdog organizations",
             "emerging through digital monitoring",
             "surfacing in regulatory filings"
-        ],
-        "Cybersecurity": [
-            "in their digital infrastructure",
-            "affecting data protection measures",
-            "impacting information security",
-            "in their network defenses",
-            "exposing potential vulnerabilities",
-            "raising digital governance questions",
-            "affecting customer data protection",
-            "potentially exposing sensitive information",
-            "in their cybersecurity protocols",
-            "within their IT security framework",
-            "affecting system integrity assurance",
-            "challenging incident response capabilities",
-            "within their data management practices",
-            "raising concerns about defense-in-depth strategies",
-            "affecting resilience against digital threats"
-        ],
-        "ESG": [
-            "raising sustainability concerns",
-            "affecting compliance with standards",
-            "impacting corporate responsibility",
-            "challenging environmental commitments",
-            "affecting social responsibility metrics",
-            "raising questions about governance practices",
-            "potentially affecting investor ESG ratings",
-            "challenging industry best practices",
-            "affecting carbon reduction initiatives",
-            "potentially limiting access to ESG-focused capital",
-            "complicating regulatory compliance",
-            "affecting stakeholder engagement",
-            "raising questions about long-term sustainability",
-            "affecting social impact measurement",
-            "challenging their position on ethical issues"
         ],
         "Bribery, Corruption & Fraud": [
             "suggesting governance challenges",
@@ -846,7 +1112,6 @@ async def overall_summary(data, session, supplier_name):
             "potentially affecting banking relationships",
             "introducing trade restriction concerns",
             "requiring enhanced screening measures",
-            "affecting cross-border payments",
             "potentially limiting supplier relationships",
             "creating export control challenges",
             "affecting international business development",
@@ -903,7 +1168,7 @@ async def overall_summary(data, session, supplier_name):
         ],
         "Adverse Media (Reputation)": [
             "reputational issues", "media exposure", "public perception challenges", "brand image concerns",
-            "PR vulnerabilities", "public opinion factors", "media sentiment", "corporate image status",
+            "public relational vulnerabilities", "public opinion factors", "media sentiment", "corporate image status",
             "market perception", "brand reputation", "public relations challenges",
             "news coverage impact", "stakeholder perception", "media presence", "public visibility"
         ],
@@ -913,20 +1178,6 @@ async def overall_summary(data, session, supplier_name):
             "unfavorable news reports", "problematic news mentions", "critical coverage",
             "journalistic scrutiny", "public record controversies", "media criticism",
             "public documentation concerns", "news analysis impact", "documented controversies"
-        ],
-        "Cybersecurity": [
-            "cybersecurity posture", "cyber risk exposure", "cybersecurity vulnerabilities",
-            "digital protection measures", "information security stance", "cyber defense readiness",
-            "network security status", "data protection framework", "IT security infrastructure",
-            "digital risk management", "security protocol effectiveness",
-            "threat prevention capabilities", "cyber resilience", "data safeguards", "security architecture"
-        ],
-        "ESG": [
-            "ESG practices", "sustainability metrics", "environmental compliance", "social responsibility measures",
-            "governance standards", "corporate responsibility framework", "ethical business conduct",
-            "sustainability indicators", "environmental impact management", "social impact measures",
-            "corporate governance quality", "ethical business standards",
-            "sustainability commitment", "environmental stewardship", "social performance indicators"
         ],
         "Bribery, Corruption & Fraud": [
             "anti-corruption controls", "fraud prevention measures", "anti-bribery safeguards",
@@ -968,7 +1219,7 @@ async def overall_summary(data, session, supplier_name):
         ],
         "PEP": [
             "politically exposed person connections", "political exposure", "political affiliation concerns",
-            "government official relationships", "political influence factors", "PEP screening results",
+            "government official relationships", "political influence factors", "politically exposed personals screening results",
             "political figure associations", "government relationship exposure", "political connection risks",
             "public official relationships", "political tie management",
             "governmental connection indicators", "political relationship disclosures",
@@ -1087,7 +1338,6 @@ async def overall_summary(data, session, supplier_name):
         group_context = None
 
         for i, (module, rating) in enumerate(group):
-            # descriptor that hasn't been used
             available_descriptors = [d for d in rating_descriptors[rating] if d not in used_descriptors]
             if not available_descriptors:
                 available_descriptors = rating_descriptors[rating]
@@ -1112,6 +1362,7 @@ async def overall_summary(data, session, supplier_name):
                 group_context = random.choice(available_contexts)
                 used_contexts.add(group_context)
 
+            descriptor = descriptor.lower()
             description = f"{descriptor} {module_term}"
             group_desc.append(description)
 
@@ -1146,7 +1397,6 @@ async def overall_summary(data, session, supplier_name):
 
         group_descriptions.append(group_text)
 
-    # Connect the group descriptions
     used_transitions = set()
     summary_body = ""
 
@@ -1167,9 +1417,58 @@ async def overall_summary(data, session, supplier_name):
 
             summary_body += transition + desc
 
+    additional_indicators = []
+
+    if country_risk_high:
+        additional_indicators.append(random.choice(country_risk_templates))
+
+    if website_high_risk:
+        additional_indicators.append(random.choice(no_website_templates))
+
+    if cyber_rating == "Medium" and esg_rating == "Medium":
+        additional_indicators.append(random.choice(cyber_esg_templates))
+    elif cyber_rating == "Medium":
+        additional_indicators.append(random.choice(cyber_only_templates))
+    elif esg_rating == "Medium":
+        additional_indicators.append(random.choice(esg_only_templates))
+
+    if additional_indicators:
+        if summary_body:
+            transition = random.choice([
+                ". In terms of additional indicators, ",
+                ". Regarding other risk factors, ",
+                ". Additional assessment reveals ",
+                ". Our evaluation also notes ",
+                ". Additional indicators shows, "
+            ])
+            summary_body += transition
+
+        for i, indicator in enumerate(additional_indicators):
+            if i == 0:
+                summary_body += indicator.lower() if summary_body else indicator
+            else:
+                connector = random.choice([
+                    ". Additionally, ",
+                    ". Furthermore, ",
+                    ". Moreover, ",
+                    ". Also, ",
+                    ". We also found "
+                ])
+                summary_body += connector + indicator.lower()
+
     intro = random.choice(intro_templates)
     conclusion = random.choice(conclusion_templates[overall_rating])
+
+    if not summary_body:
+        summary_body = "the evaluation identified minimal areas of concern across all risk domains"
+
     final_summary = f"{intro}, {summary_body}. {conclusion}"
+
+    final_summary = enforce_lowercase(final_summary)
+
+    final_summary = final_summary.replace(supplier_name.lower(), supplier_name)
+
+    final_summary = capitalize_after_full_stop(final_summary)
 
     print(final_summary)
     return final_summary

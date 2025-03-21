@@ -1,206 +1,206 @@
 import json
 from app.core.utils.db_utils import *
 
-async def bankruptcy_and_financial_risk_analysis(data, session):
-    """
-    Perform bankruptcy and financial risk analysis
-
-    Args:
-        data (dict): Input data containing entity and session information
-        session : Database session
-
-    Returns:
-        dict: Analysis results with KPI information
-    """
-    print("Performing Bankruptcy Analysis.... Started")
-
-    kpi_area_module = "BKR"
-
-    ens_id_value = data.get("ens_id")
-    session_id_value = data.get("session_id")
-
-    try:
-        # Basic KPI template
-        kpi_template = {
-            "kpi_area": kpi_area_module,
-            "kpi_code": "",
-            "kpi_definition": "",
-            "kpi_flag": False,
-            "kpi_value": None,
-            "kpi_rating": "",
-            "kpi_details": ""
-        }
-
-        # Create KPI objects
-        BKR1A = kpi_template.copy()
-        BKR2A = kpi_template.copy()
-        BKR3A = kpi_template.copy()
-
-        # Define KPI details
-        BKR1A["kpi_code"] = "BKR1A"
-        BKR1A["kpi_definition"] = "Financial Risk Score"
-
-        BKR2A["kpi_code"] = "BKR2A"
-        BKR2A["kpi_definition"] = "Qualitative Risk"
-
-        BKR3A["kpi_code"] = "BKR3A"
-        BKR3A["kpi_definition"] = "Payment Risk"
-
-        # Required columns for data retrieval
-        required_columns = [
-            "pr_more_risk_score_ratio",
-            "pr_reactive_more_risk_score_ratio",
-            "pr_qualitative_score",
-            "pr_qualitative_score_date",
-            "payment_risk_score"
-        ]
-
-        # Retrieve external supplier data
-        retrieved_data = await get_dynamic_ens_data("external_supplier_data", required_columns, ens_id_value, session_id_value, session)
-
-        # Handle case where no data is retrieved
-        if not retrieved_data:
-            print("No external supplier data found for bankruptcy analysis")
-            return {
-                "ens_id": ens_id_value,
-                "module": kpi_area_module,
-                "status": "failure",
-                "info": "no_data_found"
-            }
-
-        retrieved_data = retrieved_data[0]
-
-        # Extract specific risk metrics
-        pr_more_risk_score_ratio = retrieved_data.get("pr_more_risk_score_ratio", {})
-        pr_reactive_more_risk_score_ratio = retrieved_data.get("pr_reactive_more_risk_score_ratio", {})
-        pr_qualitative_score = retrieved_data.get("pr_qualitative_score")
-        pr_qualitative_score_date = retrieved_data.get("pr_qualitative_score_date")
-        payment_risk_score = retrieved_data.get("payment_risk_score")
-
-        # Ensure risk ratio data is a dictionary
-        pr_more_risk_score_ratio = pr_more_risk_score_ratio if isinstance(pr_more_risk_score_ratio, dict) else {}
-        pr_reactive_more_risk_score_ratio = pr_reactive_more_risk_score_ratio if isinstance(
-            pr_reactive_more_risk_score_ratio, dict) else {}
-
-        # Combine risk ratio dictionaries
-        all_ratios = {**pr_more_risk_score_ratio, **pr_reactive_more_risk_score_ratio}
-
-        # Risk rating categories
-        healthy_ratings = ["AAA", "AA", "A"]
-        adequate_ratings = ["BBB", "BB"]
-        vulnerable_ratings = ["B", "CCC"]
-        risky_ratings = ["CC", "C", "D"]
-
-        # Initialize risk analysis variables
-        kpi_rating = "INFO"
-        kpi_details = []
-        kpi_values = {}
-
-        # Categorize risk fields
-        high_risk_fields = []
-        medium_risk_fields = []
-        low_risk_fields = []
-
-        # Analyze risk ratios
-        for ratio, value in all_ratios.items():
-            if value in ["n.a", None]:
-                continue
-
-            # Categorize ratios by risk level
-            if value in healthy_ratings:
-                low_risk_fields.append(ratio)
-                kpi_values[ratio] = value
-            elif value in adequate_ratings:
-                medium_risk_fields.append(ratio)
-                kpi_values[ratio] = value
-            elif value in vulnerable_ratings or value in risky_ratings:
-                high_risk_fields.append(ratio)
-                kpi_values[ratio] = value
-
-        # Determine overall KPI rating
-        if high_risk_fields:
-            kpi_rating = "High"
-            kpi_details = high_risk_fields
-            BKR1A["kpi_flag"] = True
-        elif medium_risk_fields:
-            kpi_rating = "Medium"
-            kpi_details = medium_risk_fields
-            BKR1A["kpi_flag"] = True
-        elif low_risk_fields:
-            kpi_rating = "Low"
-            kpi_details = low_risk_fields
-            BKR1A["kpi_flag"] = True
-        else:
-            kpi_rating = "INFO"
-            kpi_details = ["No financial information available"]
-
-        # Update BKR1A KPI values
-        BKR1A["kpi_value"] = json.dumps(kpi_values) if kpi_values else None
-        BKR1A["kpi_rating"] = kpi_rating
-
-        # Set KPI details
-        if kpi_rating == "INFO":
-            BKR1A["kpi_details"] = "No financial information available"
-        else:
-            BKR1A["kpi_details"] = f"Financial Risk Rating: {kpi_rating} due to {', '.join(kpi_details)}"
-
-        # Process qualitative risk (BKR2A)
-        if pr_qualitative_score not in [None, "n.a"]:
-            if pr_qualitative_score in ["A", "B"]:
-                BKR2A["kpi_rating"] = "Low"
-            elif pr_qualitative_score == "C":
-                BKR2A["kpi_rating"] = "Medium"
-            elif pr_qualitative_score in ["D", "E"]:
-                BKR2A["kpi_rating"] = "High"
-
-            BKR2A["kpi_value"] = pr_qualitative_score
-            BKR2A["kpi_flag"] = True
-            BKR2A["kpi_details"] = f"Qualitative Risk: {BKR2A['kpi_rating']}"
-            if pr_qualitative_score_date:
-                BKR2A["kpi_details"] += f" (as of {pr_qualitative_score_date})"
-        else:
-            BKR2A["kpi_rating"] = "INFO"
-            BKR2A["kpi_details"] = "No qualitative information available"
-
-        # Process payment risk (BKR3A)
-        if payment_risk_score not in [None, "n.a"]:
-            if payment_risk_score < 510:
-                BKR3A["kpi_rating"] = "Low"
-            elif 510 <= payment_risk_score <= 629:
-                BKR3A["kpi_rating"] = "Medium"
-            elif payment_risk_score >= 630:
-                BKR3A["kpi_rating"] = "High"
-
-            BKR3A["kpi_value"] = str(payment_risk_score)
-            BKR3A["kpi_flag"] = True
-            BKR3A["kpi_details"] = f"Payment Risk: {BKR3A['kpi_rating']}"
-        else:
-            BKR3A["kpi_rating"] = "INFO"
-            BKR3A["kpi_details"] = "No payment risk information available"
-
-        # Prepare KPIs for insertion
-        bkr_kpis = [BKR1A, BKR2A, BKR3A]
-
-        # Insert KPIs into database
-        insert_status = await upsert_kpi("fstb", bkr_kpis, ens_id_value, session_id_value, session)
-
-        # Return analysis results
-        if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
-            return {
-                "ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed", "kpis": bkr_kpis
-            }
-        else:
-            print(insert_status)
-            return {
-                "ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": "database_saving_error"
-            }
-
-    except Exception as e:
-        print(f"Error in module: {kpi_area_module}: {str(e)}")
-        return {
-            "ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)
-        }
+# async def bankruptcy_and_financial_risk_analysis(data, session):
+#     """
+#     Perform bankruptcy and financial risk analysis
+#
+#     Args:
+#         data (dict): Input data containing entity and session information
+#         session : Database session
+#
+#     Returns:
+#         dict: Analysis results with KPI information
+#     """
+#     print("Performing Bankruptcy Analysis.... Started")
+#
+#     kpi_area_module = "BKR"
+#
+#     ens_id_value = data.get("ens_id")
+#     session_id_value = data.get("session_id")
+#
+#     try:
+#         # Basic KPI template
+#         kpi_template = {
+#             "kpi_area": kpi_area_module,
+#             "kpi_code": "",
+#             "kpi_definition": "",
+#             "kpi_flag": False,
+#             "kpi_value": None,
+#             "kpi_rating": "",
+#             "kpi_details": ""
+#         }
+#
+#         # Create KPI objects
+#         BKR1A = kpi_template.copy()
+#         BKR2A = kpi_template.copy()
+#         BKR3A = kpi_template.copy()
+#
+#         # Define KPI details
+#         BKR1A["kpi_code"] = "BKR1A"
+#         BKR1A["kpi_definition"] = "Financial Risk Score"
+#
+#         BKR2A["kpi_code"] = "BKR2A"
+#         BKR2A["kpi_definition"] = "Qualitative Risk"
+#
+#         BKR3A["kpi_code"] = "BKR3A"
+#         BKR3A["kpi_definition"] = "Payment Risk"
+#
+#         # Required columns for data retrieval
+#         required_columns = [
+#             "pr_more_risk_score_ratio",
+#             "pr_reactive_more_risk_score_ratio",
+#             "pr_qualitative_score",
+#             "pr_qualitative_score_date",
+#             "payment_risk_score"
+#         ]
+#
+#         # Retrieve external supplier data
+#         retrieved_data = await get_dynamic_ens_data("external_supplier_data", required_columns, ens_id_value, session_id_value, session)
+#
+#         # Handle case where no data is retrieved
+#         if not retrieved_data:
+#             print("No external supplier data found for bankruptcy analysis")
+#             return {
+#                 "ens_id": ens_id_value,
+#                 "module": kpi_area_module,
+#                 "status": "failure",
+#                 "info": "no_data_found"
+#             }
+#
+#         retrieved_data = retrieved_data[0]
+#
+#         # Extract specific risk metrics
+#         pr_more_risk_score_ratio = retrieved_data.get("pr_more_risk_score_ratio", {})
+#         pr_reactive_more_risk_score_ratio = retrieved_data.get("pr_reactive_more_risk_score_ratio", {})
+#         pr_qualitative_score = retrieved_data.get("pr_qualitative_score")
+#         pr_qualitative_score_date = retrieved_data.get("pr_qualitative_score_date")
+#         payment_risk_score = retrieved_data.get("payment_risk_score")
+#
+#         # Ensure risk ratio data is a dictionary
+#         pr_more_risk_score_ratio = pr_more_risk_score_ratio if isinstance(pr_more_risk_score_ratio, dict) else {}
+#         pr_reactive_more_risk_score_ratio = pr_reactive_more_risk_score_ratio if isinstance(
+#             pr_reactive_more_risk_score_ratio, dict) else {}
+#
+#         # Combine risk ratio dictionaries
+#         all_ratios = {**pr_more_risk_score_ratio, **pr_reactive_more_risk_score_ratio}
+#
+#         # Risk rating categories
+#         healthy_ratings = ["AAA", "AA", "A"]
+#         adequate_ratings = ["BBB", "BB"]
+#         vulnerable_ratings = ["B", "CCC"]
+#         risky_ratings = ["CC", "C", "D"]
+#
+#         # Initialize risk analysis variables
+#         kpi_rating = "INFO"
+#         kpi_details = []
+#         kpi_values = {}
+#
+#         # Categorize risk fields
+#         high_risk_fields = []
+#         medium_risk_fields = []
+#         low_risk_fields = []
+#
+#         # Analyze risk ratios
+#         for ratio, value in all_ratios.items():
+#             if value in ["n.a", None]:
+#                 continue
+#
+#             # Categorize ratios by risk level
+#             if value in healthy_ratings:
+#                 low_risk_fields.append(ratio)
+#                 kpi_values[ratio] = value
+#             elif value in adequate_ratings:
+#                 medium_risk_fields.append(ratio)
+#                 kpi_values[ratio] = value
+#             elif value in vulnerable_ratings or value in risky_ratings:
+#                 high_risk_fields.append(ratio)
+#                 kpi_values[ratio] = value
+#
+#         # Determine overall KPI rating
+#         if high_risk_fields:
+#             kpi_rating = "High"
+#             kpi_details = high_risk_fields
+#             BKR1A["kpi_flag"] = True
+#         elif medium_risk_fields:
+#             kpi_rating = "Medium"
+#             kpi_details = medium_risk_fields
+#             BKR1A["kpi_flag"] = True
+#         elif low_risk_fields:
+#             kpi_rating = "Low"
+#             kpi_details = low_risk_fields
+#             BKR1A["kpi_flag"] = True
+#         else:
+#             kpi_rating = "INFO"
+#             kpi_details = ["No financial information available"]
+#
+#         # Update BKR1A KPI values
+#         BKR1A["kpi_value"] = json.dumps(kpi_values) if kpi_values else None
+#         BKR1A["kpi_rating"] = kpi_rating
+#
+#         # Set KPI details
+#         if kpi_rating == "INFO":
+#             BKR1A["kpi_details"] = "No financial information available"
+#         else:
+#             BKR1A["kpi_details"] = f"Financial Risk Rating: {kpi_rating} due to {', '.join(kpi_details)}"
+#
+#         # Process qualitative risk (BKR2A)
+#         if pr_qualitative_score not in [None, "n.a"]:
+#             if pr_qualitative_score in ["A", "B"]:
+#                 BKR2A["kpi_rating"] = "Low"
+#             elif pr_qualitative_score == "C":
+#                 BKR2A["kpi_rating"] = "Medium"
+#             elif pr_qualitative_score in ["D", "E"]:
+#                 BKR2A["kpi_rating"] = "High"
+#
+#             BKR2A["kpi_value"] = pr_qualitative_score
+#             BKR2A["kpi_flag"] = True
+#             BKR2A["kpi_details"] = f"Qualitative Risk: {BKR2A['kpi_rating']}"
+#             if pr_qualitative_score_date:
+#                 BKR2A["kpi_details"] += f" (as of {pr_qualitative_score_date})"
+#         else:
+#             BKR2A["kpi_rating"] = "INFO"
+#             BKR2A["kpi_details"] = "No qualitative information available"
+#
+#         # Process payment risk (BKR3A)
+#         if payment_risk_score not in [None, "n.a"]:
+#             if payment_risk_score < 510:
+#                 BKR3A["kpi_rating"] = "Low"
+#             elif 510 <= payment_risk_score <= 629:
+#                 BKR3A["kpi_rating"] = "Medium"
+#             elif payment_risk_score >= 630:
+#                 BKR3A["kpi_rating"] = "High"
+#
+#             BKR3A["kpi_value"] = str(payment_risk_score)
+#             BKR3A["kpi_flag"] = True
+#             BKR3A["kpi_details"] = f"Payment Risk: {BKR3A['kpi_rating']}"
+#         else:
+#             BKR3A["kpi_rating"] = "INFO"
+#             BKR3A["kpi_details"] = "No payment risk information available"
+#
+#         # Prepare KPIs for insertion
+#         bkr_kpis = [BKR1A, BKR2A, BKR3A]
+#
+#         # Insert KPIs into database
+#         insert_status = await upsert_kpi("fstb", bkr_kpis, ens_id_value, session_id_value, session)
+#
+#         # Return analysis results
+#         if insert_status["status"] == "success":
+#             print(f"{kpi_area_module} Analysis... Completed Successfully")
+#             return {
+#                 "ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed", "kpis": bkr_kpis
+#             }
+#         else:
+#             print(insert_status)
+#             return {
+#                 "ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": "database_saving_error"
+#             }
+#
+#     except Exception as e:
+#         print(f"Error in module: {kpi_area_module}: {str(e)}")
+#         return {
+#             "ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)
+#         }
 
 async def financial_ratios_analysis(data, session):
     """
@@ -415,13 +415,15 @@ async def main_financial_analysis(data, session):
             ens_id_value = data.get("ens_id")
             session_id_value = data.get("session_id")
             required_column = ["all"]
-            updated_kpis = await get_dynamic_ens_data("fstb",required_column, ens_id_value, session_id_value, session)
+            updated_kpis = await get_dynamic_ens_data("fstb", required_column, ens_id_value, session_id_value, session)
             print("Financial Main completed")
             return {
                 "financial_ratios_analysis": financial_ratios_result,
                 "financials_analysis": financials_result,
                 "inserted_kpis": updated_kpis
             }
+
+
         else:
             print("Some BKR KPI flags are True - Skipping Financial Analysis")
             return {
@@ -452,6 +454,17 @@ async def financials_analysis(data, session):
             "kpi_rating": "",
             "kpi_details": ""
         }
+
+        def format_num(value_str):
+            try:
+                value = float(value_str)
+                value = value * 1000
+                if value >= 1_000_000_000:
+                    return f"{value / 1_000_000_000:.0f}B"
+                elif value >= 1_000_000:
+                    return f"{value / 1_000_000:.0f}M"
+            except:
+                return value_str
 
         required_columns = [
             "operating_revenue", "profit_loss_after_tax", "ebitda", "cash_flow", "pl_before_tax",

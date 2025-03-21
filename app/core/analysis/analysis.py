@@ -19,12 +19,14 @@ from app.core.analysis.orbis_submodules.GRID_orbis import *
 from app.core.analysis.orbis_submodules.GRID_byID import *
 from app.core.analysis.orbis_submodules.GRID_byNAME import *
 from app.core.analysis.orbis_submodules.NEWS import *
+from app.core.analysis.analysis_submodules.NEWS_analysis import *
 from app.core.analysis.orbis_submodules.MATCH_orbis import *
 from app.core.analysis.report_generation_submodules.report import *
 from app.core.analysis.report_generation_submodules.json_formatted_report import *
 from app.core.analysis.supplier_validation_submodules.supplier_name_validation import *
 import logging
 from app.core.database_session import _ASYNC_ENGINE, SessionFactory
+
 
 # Configure logging
 logging.basicConfig(
@@ -225,7 +227,6 @@ async def run_analysis_tasks(data, session):
         website_analysis(data, SessionFactory()),
         esg_analysis(data, SessionFactory()),
         cyber_analysis(data, SessionFactory()),
-        bankruptcy_and_financial_risk_analysis(data, SessionFactory()),
         main_financial_analysis(data, SessionFactory()),
         legal_analysis(data,SessionFactory()),
         ownership_analysis(data, SessionFactory()),
@@ -278,10 +279,12 @@ async def run_analysis_tasks(data, session):
             print("in if")
             ens_ids_rows = [{"ens_id": ens_id, "report_generation_status": STATUS.COMPLETED, "overall_status": STATUS.COMPLETED}]
             insert_status = await upsert_ensid_screening_status(ens_ids_rows, session_id, SessionFactory())
+            print("status after report", insert_status)
         else:
             print("in else")
             ens_ids_rows = [{"ens_id": ens_id, "report_generation_status": STATUS.FAILED, "overall_status": STATUS.FAILED}]
             insert_status = await upsert_ensid_screening_status(ens_ids_rows, session_id, SessionFactory())
+            print("status after report", insert_status)
 
         return analysis_results + [report_result]  # TODO Neaten
 
@@ -315,36 +318,52 @@ async def run_orbis(ens_id, session_id, bvd_id, session):
         print(f"PERFORMING ORBIS RETRIEVAL FOR {ens_id}")
         # 1. ORBIS COMPANY - most of the main fields in external_supplier_data (FOR COMPANY LEVEL)
         company_result = await orbis_company(data, session)
-        print(company_result.get("success",""))
 
         # 2. ORBIS GRID - fields which are "event_" in external_supplier_data (FOR COMPANY LEVEL)
         orbis_grid_result = await orbis_grid_search(data, session)
         orbis_grid_data_indicator = orbis_grid_result.get("data",False)
         orbis_grid_success_indicator = orbis_grid_result.get("success", False)
-        print("indicators orbis grid:", orbis_grid_data_indicator, orbis_grid_success_indicator)
+        orbis_grid_adv_indicator = orbis_grid_result.get("adv_count", 0)
+        print("indicators orbis grid:",orbis_grid_adv_indicator, orbis_grid_success_indicator, orbis_grid_data_indicator, orbis_grid_result)
 
         # 3A. GRID-GRID by ID <may not work> (FOR COMPANY LEVEL)
         grid_grid_result = await gridbyid_organisation(data, session)
         grid_grid_data_indicator = grid_grid_result.get("data", False)
-        grid_grid_success_indicator =grid_grid_result.get("success",False)
-        print("indicators grid grid:", grid_grid_data_indicator, grid_grid_success_indicator)
+        grid_grid_success_indicator = grid_grid_result.get("success",False)
+        grid_grid_adv_indicator = grid_grid_result.get("adv_count", 0)
+        print("indicators grid grid:", grid_grid_adv_indicator, grid_grid_success_indicator, grid_grid_data_indicator, grid_grid_result)
 
         grid_grid_msg = grid_grid_result.get("message", "")
         # 3B. (FALLBACK) GRID-GRID by NAME (FOR COMPANY LEVEL)
         grid_grid_id_success_indicator = True
         grid_grid_id_data_indicator = True
+        grid_grid_id_adv_indicator = 0
         if grid_grid_msg == "No event for the particular entity" or not grid_grid_success_indicator:
             print("No Initial GRID")
             grid_grid_id_result = await gridbyname_organisation(data, session)
             grid_grid_id_data_indicator = grid_grid_id_result.get("data", False)
             grid_grid_id_success_indicator = grid_grid_id_result.get("success", False)
-            print("indicators grid grid id:", grid_grid_id_success_indicator, grid_grid_id_data_indicator)
+            grid_grid_id_adv_indicator = grid_grid_id_result.get("adv_count", 0)
+            print("indicators grid grid id:",grid_grid_id_adv_indicator, grid_grid_id_success_indicator, grid_grid_id_data_indicator, grid_grid_id_result)
         # 3C. (FALLBACK) ORBIS NEWS
-        if (orbis_grid_success_indicator == False or orbis_grid_data_indicator == False) and (grid_grid_success_indicator==False or grid_grid_data_indicator==False) or (grid_grid_id_success_indicator==False or grid_grid_id_data_indicator==False):
-            print("Running: other news findings")
-            orbis_news_result = await orbis_news_search(data,session)
+            print(f"total:{int(orbis_grid_adv_indicator)}, {int(grid_grid_adv_indicator)}, {int(grid_grid_id_adv_indicator)}", int(orbis_grid_adv_indicator) + int(grid_grid_adv_indicator) + int(grid_grid_id_adv_indicator))
+        if int(orbis_grid_adv_indicator) + int(grid_grid_adv_indicator) + int(grid_grid_id_adv_indicator) == 0:
+            try:
+                print("Running: other news findings")
+                orbis_news_result = await orbis_news_search(data,session)
+                orbis_news_data_indicator = orbis_news_result.get("data", False)
+                orbis_news_success_indicator = orbis_news_result.get("success", False)
+                if orbis_news_success_indicator == False or orbis_news_data_indicator == False:
+                    print("Running: two cents")
+                    two_cents_result=await newsscreening_main_company(data, session)
+                else:
+                    print("2 cents skipped")
+            except Exception as e:
+                print("ERROR RUNNING 2 SENTS -------------", str(e))
         else:
+            print(f"total:{int(orbis_grid_adv_indicator)}, {int(grid_grid_adv_indicator)}, {int(grid_grid_id_adv_indicator)}", int(orbis_grid_adv_indicator) + int(grid_grid_adv_indicator) + int(grid_grid_id_adv_indicator))
             print("Skipping: other news findings")
+
         # orbis_news_result = await orbis_news_search(data, session)
         # 4. (FALLBACK) GRID-GRID by NAME (FOR PERSON LEVEL)
         grid_grid_result_person = await gridbyname_person(data, session)
@@ -416,14 +435,14 @@ async def run_analysis(data, session):
             screening_retrieval_status.extend(screening_batch_result)
             print("|| output ||", screening_batch_result)
 
+        session_status_cols = [{"screening_analysis_status": STATUS.COMPLETED, "overall_status": STATUS.COMPLETED}]
+        insert_status = await upsert_session_screening_status(session_status_cols, session_id_value, SessionFactory())
+        # print(insert_status)
+
         # PERFORM ADDITIONAL VALIDATION / SUMMARIES HERE (?)
         log_json=await format_json_log(session_id_value, SessionFactory())
         log_json_file_name="output_log.json"
         upload_to_azure_blob(log_json,log_json_file_name,session_id_value)
-
-        session_status_cols = [{"screening_analysis_status": STATUS.COMPLETED, "overall_status": STATUS.COMPLETED}]
-        insert_status = await upsert_session_screening_status(session_status_cols, session_id_value, SessionFactory())
-        # print(insert_status)
 
     except Exception as e:
 

@@ -7,12 +7,18 @@ import ast
 import json
 
 async def ownership_analysis(data, session):
+
+    module_activation = False
+
     print("Performing Ownership Structure Analysis... Started")
 
     kpi_area_module = "OWN"
 
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
+
+    if not module_activation:
+        return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "module_deactivated"}
 
     try:
         kpi_template = {
@@ -122,7 +128,7 @@ async def ownership_flag(data, session):
 
         PEP3A["kpi_area"] = "PEP"
         PEP3A["kpi_code"] = "PEP3A"
-        PEP3A["kpi_definition"] = "Associated Corporate Group - PeP Exposure"
+        PEP3A["kpi_definition"] = "Associated Corporate Group - PeP/SOE Exposure"
 
         AMR2A["kpi_area"] = "AMR"
         AMR2A["kpi_code"] = "AMR2A"
@@ -169,6 +175,8 @@ async def ownership_flag(data, session):
             media_flag_tmp = False
             for sh in global_ultimate_owner:
                 name = sh.get("name",None)
+                if name.lower() == "self owned":
+                    continue
                 sanctions_indicator = sh.get("sanctions_indicator", "n.a.")
                 watchlist_indicator = sh.get("watchlist_indicator", "n.a.")
                 pep_indicator = sh.get("pep_indicator", "n.a.")
@@ -208,6 +216,8 @@ async def ownership_flag(data, session):
             media_flag_tmp = False
             for sh in shareholders:
                 name = sh.get("name", None)
+                if name.lower() == "self owned":
+                    continue
                 sanctions_indicator = sh.get("sanctions_indicator", "n.a.")
                 watchlist_indicator = sh.get("watchlist_indicator", "n.a.")
                 pep_indicator = sh.get("pep_indicator", "n.a.")
@@ -247,6 +257,8 @@ async def ownership_flag(data, session):
             media_flag_tmp = False
             for sh in beneficial_owners:
                 name = sh.get("name", None)
+                if name.lower() == "self owned":
+                    continue
                 sanctions_indicator = sh.get("sanctions_indicator", "n.a.")
                 watchlist_indicator = sh.get("watchlist_indicator", "n.a.")
                 pep_indicator = sh.get("pep_indicator", "n.a.")
@@ -286,6 +298,8 @@ async def ownership_flag(data, session):
             media_flag_tmp = False
             for sh in other_ultimate_beneficiary:
                 name = sh.get("name", None)
+                if name.lower() == "self owned":
+                    continue
                 sanctions_indicator = sh.get("sanctions_indicator", "n.a.")
                 watchlist_indicator = sh.get("watchlist_indicator", "n.a.")
                 pep_indicator = sh.get("pep_indicator", "n.a.")
@@ -325,6 +339,8 @@ async def ownership_flag(data, session):
             media_flag_tmp = False
             for sh in ultimately_owned_subsidiaries:
                 name = sh.get("name", None)
+                if name.lower() == "self owned":
+                    continue
                 sanctions_indicator = sh.get("sanctions_indicator", "n.a.")
                 watchlist_indicator = sh.get("watchlist_indicator", "n.a.")
                 pep_indicator = sh.get("pep_indicator", "n.a.")
@@ -358,8 +374,8 @@ async def ownership_flag(data, session):
         if sanctions_watchlist_kpi_flag:
             total_san_count = len(sanctions_watchlist_findings)
             SAN3A["kpi_flag"] = True
-            SAN3A["kpi_rating"] = "Medium"
-            SAN3A["kpi_details"] = "Sanctions or watchlist exposure identified among following members of the corporate group:\n" +"\n \n".join(sanctions_watchlist_details) + ("\n...& "+str(total_san_count-5)+" more findings" if total_san_count > 6 else "")
+            SAN3A["kpi_rating"] = "High"
+            SAN3A["kpi_details"] = "Sanctions or watchlist exposure identified among following members of the corporate group:\n" +"\n \n".join(sanctions_watchlist_details) + ("\n...& "+str(total_san_count-5)+" more findings" if total_san_count > 6 else "") + "\n \n" + "Source: EY Network Alliance Databases"
             kpi_dict = {
                 "count": total_san_count if total_san_count < 6 else "5 or more",
                 "findings": sanctions_watchlist_findings
@@ -371,16 +387,14 @@ async def ownership_flag(data, session):
 
             if insert_status["status"] == "success":
                 print(f"SAN3A Analysis... Completed Successfully")
-                return {"ens_id": ens_id_value, "module": "SAN3A", "status": "completed", "info": "analysed"}
             else:
                 print(insert_status)
-                return {"ens_id": ens_id_value, "module": "SAN3A", "status": "failure","info": "database_saving_error"}
 
         if pep_kpi_flag:
             total_pep_count = len(pep_findings)
             PEP3A["kpi_flag"] = True
-            PEP3A["kpi_rating"] = "Medium"
-            PEP3A["kpi_details"] = "PEP exposure identified among following members of the corporate group:\n"+"\n \n".join(pep_details) + ("\n...& "+str(total_pep_count-5)+" more findings" if total_pep_count > 5 else "")
+            PEP3A["kpi_rating"] = "High"
+            PEP3A["kpi_details"] = "PEP exposure identified among following members of the corporate group:\n"+"\n \n".join(pep_details) + ("\n...& "+str(total_pep_count-5)+" more findings" if total_pep_count > 5 else "") + "\n \n" + "Source: EY Network Alliance Databases"
             kpi_dict = {
                 "count": total_pep_count if total_pep_count < 6 else "5 or more",
                 "findings": pep_findings
@@ -392,16 +406,14 @@ async def ownership_flag(data, session):
 
             if insert_status["status"] == "success":
                 print(f"PEP3A Analysis... Completed Successfully")
-                return {"ens_id": ens_id_value, "module": "PEP3A", "status": "completed", "info": "analysed"}
             else:
                 print(insert_status)
-                return {"ens_id": ens_id_value, "module": "PEP3A", "status": "failure","info": "database_saving_error"}
 
         if media_kpi_flag:
             total_med_count = len(media_findings)
             AMR2A["kpi_flag"] = True
-            AMR2A["kpi_rating"] = "Medium"
-            AMR2A["kpi_details"] = "Media exposure identified among following members of the corporate group:\n"+"\n \n".join(media_details) + ("\n...& "+str(total_med_count-5)+" more findings" if total_med_count > 5 else "")
+            AMR2A["kpi_rating"] = "High"
+            AMR2A["kpi_details"] = "Possible Negative Media exposure identified among following members of the corporate group:\n"+"\n \n".join(media_details) + ("\n...& "+str(total_med_count-5)+" more findings" if total_med_count > 5 else "")+ "\n \n" + " Source: EY Network Alliance Databases"
             kpi_dict = {
                 "count": total_med_count if total_med_count < 6 else "5 or more",
                 "findings": media_findings
@@ -413,10 +425,11 @@ async def ownership_flag(data, session):
 
             if insert_status["status"] == "success":
                 print(f"AMR2A Analysis... Completed Successfully")
-                return {"ens_id": ens_id_value, "module": "AMR2A", "status": "completed", "info": "analysed"}
             else:
                 print(insert_status)
-                return {"ens_id": ens_id_value, "module": "AMR2A", "status": "failure","info": "database_saving_error"}
+
+
+        return {"ens_id": ens_id_value, "module": "OVAL EXTRA", "status": "completed","info": "analysed"}
 
     except Exception as e:
         print(f"Error in module: OVAL EXTRA, {str(e)}")

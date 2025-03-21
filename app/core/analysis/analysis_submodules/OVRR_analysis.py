@@ -12,20 +12,27 @@ async def ovrr(data, session):
 
     kpi_area_module = "OVR"
     try:
-        # ------------------------- SANCTIONS & PEP
-        required_columns = ["kpi_area", "kpi_code", "kpi_rating"]
+        # ------------------------- SANCTIONS
+        required_columns = ["kpi_area", "kpi_code", "kpi_rating", "kpi_flag"]
 
         sape = await get_dynamic_ens_data("sape", required_columns, ens_id_value, session_id_value, session)
         sape_high_trigger = False
         sape_medium_trigger = False
+        sape_low_trigger = False
         for row in sape:
-            if "High" in row.get('kpi_rating'):
-                sape_high_trigger = True
-                break
-            elif "Medium" in row.get('kpi_rating'):
-                sape_medium_trigger = True
-                break
-        sanctions_rating = "High" if sape_high_trigger else "Medium" if sape_medium_trigger else "Low"
+            print(row)
+            if row.get("kpi_flag"):
+                if "High" in row.get('kpi_rating'):
+                    print("high")
+                    sape_high_trigger = True
+                    break
+                elif "Medium" in row.get('kpi_rating'):
+                    print("medium")
+                    sape_medium_trigger = True
+                elif "Low" in row.get('kpi_rating'):
+                    print("low")
+                    sape_low_trigger = True
+        sanctions_rating = "High" if sape_high_trigger else "Medium" if sape_medium_trigger else "Low" if sape_low_trigger else "No Alerts"
 
         sanctions_overall = {
             "kpi_area": "theme_rating",
@@ -43,14 +50,15 @@ async def ovrr(data, session):
 
         # ------------------------- ESG
         esg_medium_trigger = False
+        esg_low_trigger = False
         for row in esg:
             if "High" in row.get('kpi_rating'):
                 esg_medium_trigger = True
-                break
             elif "Medium" in row.get('kpi_rating'):
                 esg_medium_trigger = True
-                break
-        esg_rating = "Medium" if esg_medium_trigger else "Low"
+            elif "Low" in row.get('kpi_rating'):
+                esg_low_trigger = True
+        esg_rating = "Medium" if esg_medium_trigger else "Low" if esg_low_trigger else "No Alerts"
 
         esg_overall = {
             "kpi_area": "theme_rating",
@@ -60,14 +68,15 @@ async def ovrr(data, session):
 
         # ------------------------- CYBER
         cyb_medium_trigger = False
+        cyb_low_trigger = False
         for row in cyb:
             if "High" in row.get('kpi_rating'):
                 cyb_medium_trigger = True
-                break
             elif "Medium" in row.get('kpi_rating'):
                 cyb_medium_trigger = True
-                break
-        cyb_rating = "Medium" if cyb_medium_trigger else "Low"
+            elif "Low" in row.get('kpi_rating'):
+                cyb_low_trigger = True
+        cyb_rating = "Medium" if cyb_medium_trigger else "Low" if cyb_low_trigger else "No Alerts"
 
         cyber_overall = {
             "kpi_area": "theme_rating",
@@ -78,13 +87,13 @@ async def ovrr(data, session):
         web_medium_trigger = False
         web_high_trigger = False
         for row in web:
-            if "High" in row.get('kpi_rating'):
-                web_high_trigger = True
-                break
-            elif "Medium" in row.get('kpi_rating'):
-                web_medium_trigger = True
-                break
-        web_rating = "High" if web_high_trigger else "Medium" if web_medium_trigger else "Low"
+            if row.get("kpi_flag"):
+                if "High" in row.get('kpi_rating'):
+                    web_high_trigger = True
+                    break
+                elif "Medium" in row.get('kpi_rating'):
+                    web_medium_trigger = True
+        web_rating = "High" if web_high_trigger else "Medium" if web_medium_trigger else "No Alerts"
 
         web_overall = {
             "kpi_area": "theme_rating",
@@ -100,8 +109,10 @@ async def ovrr(data, session):
             additional_indicator_rating = "High"
         elif "Medium" in compile_section_ratings:  # Any presence of Medium (No High)
             additional_indicator_rating = "Medium"
-        else:
+        elif "Low" in compile_section_ratings:  # Any presence of Medium (No High)
             additional_indicator_rating = "Low"
+        else:
+            additional_indicator_rating = "No Alerts"
 
         additional_indicator_overall = {
             "kpi_area": "theme_rating",
@@ -114,20 +125,26 @@ async def ovrr(data, session):
         fin = await get_dynamic_ens_data("fstb", required_columns, ens_id_value, session_id_value, session)
         fin_high_trigger = False
         fin_medium_trigger = False
+        fin_low_trigger = False
         for row in fin:
             if "High" in row.get('kpi_rating'):
                 fin_high_trigger = True
                 break
             elif "Medium" in row.get('kpi_rating'):
                 fin_medium_trigger = True
-                break
-        fin_rating = "High" if fin_high_trigger else "Medium" if fin_medium_trigger else "Low"
+            elif "Low" in row.get('kpi_rating'):
+                fin_low_trigger = True
+        fin_rating = "High" if fin_high_trigger else "Medium" if fin_medium_trigger else "Low" if fin_low_trigger else "No Alerts"
+
+        fin_rating = "No Alerts" if (len(fin) == 0) else fin_rating
 
         financials_overall = {
             "kpi_area": "theme_rating",
             "kpi_code": "financials",
             "kpi_rating": fin_rating
         }
+
+        print("financial rating:",fin_rating)
 
         # ---------------------------------------------------------------- RFCT & LGRK
 
@@ -136,8 +153,7 @@ async def ovrr(data, session):
         amo_amr = [d for d in rfct if ((d['kpi_area'] == "AMO") or (d['kpi_area'] == "AMR" ))]
         bcf = [d for d in rfct if d['kpi_area'] == "BCF"]
         reg = [d for d in rfct if d['kpi_area'] == "REG"]
-        onf = [d for d in news if d['kpi_area'] == "ONF"]
-        amo_amr_onf = amo_amr + onf
+        amo_amr_onf_2cents = amo_amr + news
 
 
         lgrk = await get_dynamic_ens_data("lgrk", required_columns, ens_id_value, session_id_value, session)
@@ -147,14 +163,17 @@ async def ovrr(data, session):
 
         am_high_trigger = False
         am_medium_trigger = False
-        for row in amo_amr_onf:
-            if "High" in row.get('kpi_rating'):
-                am_high_trigger = True
-                break
-            elif "Medium" in row.get('kpi_rating'):
-                am_medium_trigger = True
-                break
-        am_rating = "High" if am_high_trigger else "Medium" if am_medium_trigger else "Low"
+        am_low_trigger = False
+        for row in amo_amr_onf_2cents:
+            if row.get("kpi_flag"):
+                if "High" in row.get('kpi_rating'):
+                    am_high_trigger = True
+                    break
+                elif "Medium" in row.get('kpi_rating'):
+                    am_medium_trigger = True
+                else:
+                    am_low_trigger = True
+        am_rating = "High" if am_high_trigger else "Medium" if am_medium_trigger else "Low" if am_low_trigger else "No Alerts"
 
         other_adverse_media_overall = {
             "kpi_area": "theme_rating",
@@ -166,14 +185,17 @@ async def ovrr(data, session):
 
         bcf_high_trigger = False
         bcf_medium_trigger = False
+        bcf_low_trigger = False
         for row in bcf:
-            if "High" in row.get('kpi_rating'):
-                bcf_high_trigger = True
-                break
-            elif "Medium" in row.get('kpi_rating'):
-                bcf_medium_trigger = True
-                break
-        bcf_rating = "High" if bcf_high_trigger else "Medium" if bcf_medium_trigger else "Low"
+            if row.get("kpi_flag"):
+                if "High" in row.get('kpi_rating'):
+                    bcf_high_trigger = True
+                    break
+                elif "Medium" in row.get('kpi_rating'):
+                    bcf_medium_trigger = True
+                else:
+                    bcf_low_trigger = True
+        bcf_rating = "High" if bcf_high_trigger else "Medium" if bcf_medium_trigger else "Low" if bcf_low_trigger else "No Alerts"
 
         bribery_corruption_overall = {
             "kpi_area": "theme_rating",
@@ -185,19 +207,22 @@ async def ovrr(data, session):
         reg_leg = reg+lgrk
         reg_high_trigger = False
         reg_medium_trigger = False
+        reg_low_trigger = False
         for row in reg_leg:
-            if "High" in row.get('kpi_rating'):
-                reg_high_trigger = True
-                break
-            elif "Medium" in row.get('kpi_rating'):
-                reg_medium_trigger = True
-                break
-        reg_rating = "High" if reg_high_trigger else "Medium" if reg_medium_trigger else "Low"
+            if row.get("kpi_flag"):
+                if "High" in row.get('kpi_rating'):
+                    reg_high_trigger = True
+                    break
+                elif "Medium" in row.get('kpi_rating'):
+                    reg_medium_trigger = True
+                else:
+                    reg_low_trigger = True
+        reg_rating = "High" if reg_high_trigger else "Medium" if reg_medium_trigger else "Low" if reg_low_trigger else "No Alerts"
 
         regulatory_legal_overall = {
             "kpi_area": "theme_rating",
             "kpi_code": "regulatory_legal",
-            "kpi_rating": reg_rating
+            "kpi_rating": "Deactivated"
         }
 
         # ------------------------- GOVERNMENT & POLITICAL
@@ -205,14 +230,17 @@ async def ovrr(data, session):
 
         gov_high_trigger = False
         gov_medium_trigger = False
+        gov_low_trigger = False
         for row in sown:
-            if "High" in row.get('kpi_rating'):
-                gov_high_trigger = True
-                break
-            elif "Medium" in row.get('kpi_rating'):
-                gov_medium_trigger = True
-                break
-        gov_rating = "High" if gov_high_trigger else "Medium" if gov_medium_trigger else "Low"
+            if row.get("kpi_flag"):
+                if "High" in row.get('kpi_rating'):
+                    gov_high_trigger = True
+                    break
+                elif "Medium" in row.get('kpi_rating'):
+                    gov_medium_trigger = True
+                else:
+                    gov_low_trigger = True
+        gov_rating = "High" if gov_high_trigger else "Medium" if gov_medium_trigger else "Low" if gov_low_trigger else "No Alerts"
 
         government_political_overall = {
             "kpi_area": "theme_rating",
@@ -225,23 +253,26 @@ async def ovrr(data, session):
         oval = await get_dynamic_ens_data("oval", required_columns, ens_id_value, session_id_value, session)
         oval_high_trigger = False
         oval_medium_trigger = False
+        oval_low_trigger = False
         for row in oval:
-            if "High" in row.get('kpi_rating'):
-                oval_high_trigger = True
-                break
-            elif "Medium" in row.get('kpi_rating'):
-                oval_medium_trigger = True
-                break
-        ownership_rating = "High" if oval_high_trigger else "Medium" if oval_medium_trigger else "Low"
+            if row.get("kpi_flag"):
+                if "High" in row.get('kpi_rating'):
+                    oval_high_trigger = True
+                    break
+                elif "Medium" in row.get('kpi_rating'):
+                    oval_medium_trigger = True
+                else:
+                    oval_low_trigger = True
+        ownership_rating = "High" if oval_high_trigger else "Medium" if oval_medium_trigger else "Low" if oval_low_trigger else "No Alerts"
 
         ownership_overall = {
             "kpi_area": "theme_rating",
             "kpi_code": "ownership",
-            "kpi_rating": ownership_rating
+            "kpi_rating": "Deactivated"
         }
 
 
-        ovr_kpis = [government_political_overall, regulatory_legal_overall, bribery_corruption_overall,
+        ovr_kpis = [government_political_overall, bribery_corruption_overall, regulatory_legal_overall,
                       other_adverse_media_overall, financials_overall, additional_indicator_overall,esg_overall,web_overall, cyber_overall, sanctions_overall, ownership_overall]
 
         compile_section_ratings = [d.get("kpi_rating","") for d in ovr_kpis]

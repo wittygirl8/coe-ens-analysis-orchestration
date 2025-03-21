@@ -24,6 +24,7 @@ async def orbis_grid_search(data, session):
     }
     response = requests.request("GET", url, headers=headers, data=payload)
     response_json=response.json()
+    adv_count = response_json.get("adv_count", 0)
     success = response_json.get("success", False)
     data = False
     if success == True:
@@ -37,4 +38,4 @@ async def orbis_grid_search(data, session):
 
     print("Performing Orbis Grid Search... Completed")
 
-    return {"module": "Orbis Grid Search", "status": "completed", "success": success, "data": data}
+    return {"module": "Orbis Grid Search", "status": "completed", "success": success, "data": data, "adv_count": adv_count}

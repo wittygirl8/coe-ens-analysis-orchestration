@@ -1,5 +1,5 @@
 from fastapi import Depends
-from sqlalchemy import and_, update
+from sqlalchemy import and_, update, desc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -208,7 +208,7 @@ async def upsert_dynamic_ens_data(
 
         # Build the UPSERT query (Insert with conflict handling)
         query = insert(table_class).values(rows_to_insert).on_conflict_do_update(
-            index_elements=["ens_id"],  # Conflict columns
+            index_elements=["ens_id", "session_id"],  # Conflict columns
             set_={col: getattr(insert(table_class).excluded, col) for col in rows_to_insert[0].keys() if col not in ["ens_id", "session_id"]}
         )
 
@@ -541,10 +541,16 @@ async def check_and_update_unique_value(
             (getattr(table_class.c, column_name) == bvd_id_to_check) &
             (table_class.c.ens_id != ens_id)  # Exclude the current row
         )
+        query = query.order_by(desc(table_class.c.create_time))
         result = await session.execute(query)
         existing_rows = result.scalars().all()
 
-        if existing_rows:
+        if existing_rows: # EXISTING ENS-IDs WITH SAME BVDID AS CURRENT ROW
+
+            print("----------- BVDID ALREADY EXISTS")
+            latest_ens_id = existing_rows[0]
+            print("PRE-EXISTING ENS_ID ----> ", latest_ens_id)
+
             # Step 2: If value exists, update pre_existing_bvdid to 'Yes' for all matching rows
             update_query = (
                 update(table_class)
@@ -553,17 +559,17 @@ async def check_and_update_unique_value(
             )
             await session.execute(update_query)
 
-            # Step 3: Also update pre_existing_bvdid for the current row being updated
+            # Step 3: Also update pre_existing_bvdid and replace ens_id with pre-existing ens_id for the current row being updated
             update_self_query = (
                 update(table_class)
                 .where(table_class.c.ens_id == ens_id)
-                .values(pre_existing_bvdid=True)
+                .values(pre_existing_bvdid=True, ens_id=latest_ens_id)
             )
             await session.execute(update_self_query)
 
             await session.commit()
             await session.close()
-            return {"status": "duplicate", "message": f"Value '{bvd_id_to_check}' already exists. pre_existing_bvdid set to 'Yes'."}
+            return latest_ens_id, {"status": "duplicate", "message": f"Value '{bvd_id_to_check}' already exists. pre_existing_bvdid set to 'Yes'."}
 
         else:
             # Step 4: If value does not exist, update the column for the given ens_id
@@ -575,15 +581,15 @@ async def check_and_update_unique_value(
             await session.execute(update_query)
             await session.commit()
             await session.close()
-            return {"status": "unique", "message": f"Value '{bvd_id_to_check}' successfully updated."}
+            return ens_id, {"status": "unique", "message": f"Value '{bvd_id_to_check}' successfully updated."}
 
     except ValueError as ve:
         print(f"Error: {ve}")
-        return {"error": str(ve), "status": "failure"}
+        return ens_id, {"error": str(ve), "status": "failure"}
 
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
-        return {"error": "An unexpected error occurred", "status": "failure"}
+        return ens_id, {"error": "An unexpected error occurred", "status": "failure"}
 
 
 async def get_ens_ids_for_session_id(

@@ -6,11 +6,16 @@ import os
 import json
 from app.core.config import get_settings
 
+import requests
+from datetime import datetime
+
+
 async def newsscreening_main_company(data, session):
     print("Performing News Analysis...")
+    kpi_area_module = "NWS"
 
     kpi_template = {
-        "kpi_area": "News Screening",
+        "kpi_area": kpi_area_module,
         "kpi_code": "",
         "kpi_definition": "",
         "kpi_flag": False,
@@ -20,25 +25,8 @@ async def newsscreening_main_company(data, session):
     }
 
     NWS1A = kpi_template.copy()
-    NWS1B = kpi_template.copy()
-    NWS1C = kpi_template.copy()
-    NWS1D = kpi_template.copy()
-    NWS1E = kpi_template.copy()
-
     NWS1A["kpi_code"] = "NWS1A"
-    NWS1A["kpi_definition"] = "Adverse Media - General"
-
-    NWS1B["kpi_code"] = "NWS1B"
-    NWS1B["kpi_definition"] = "Adverse Media - Business Ethics / Reputational Risk / Code of Conduct"
-
-    NWS1C["kpi_code"] = "NWS1C"
-    NWS1C["kpi_definition"] = "Bribery / Corruption / Fraud"
-
-    NWS1D["kpi_code"] = "NWS1D"
-    NWS1D["kpi_definition"] = "Regulatory Actions"
-
-    NWS1E["kpi_code"] = "NWS1E"
-    NWS1E["kpi_definition"] = "Adverse Media - Other Criminal Activity"
+    NWS1A["kpi_definition"] = "Adverse Media - Additional Screening"
 
     ens_id = data.get("ens_id")
     session_id = data.get("session_id")
@@ -49,91 +37,127 @@ async def newsscreening_main_company(data, session):
 
     name = retrieved_data.get("name")
     country = retrieved_data.get("country")
+    print("checkpoint 1")
 
     news_url = get_settings().urls.news_backend
     url = f"{news_url}/items/news_ens_data"
+    print("url:", url)
+
     headers = {
         "accept": "application/json",
         "Content-Type": "application/json"
     }
-    data = {
-        "name": name,
-        "flag": "Entity",
-        "company": "",
-        "domain": [""],
-        "start_date": "2020-01-01",
-        "end_date": "2025-02-01",
-        "country": country,
-        "request_type": "single"
-    }
 
-    response = requests.post(url, headers=headers, json=data)
+    total_news = 0
+    current_year = 2025
+    min_year = 2020
+    news_data = []
+    response=[]
+    while total_news < 5 and current_year >= min_year:
+        start_date = f"{current_year}-01-01"
+        end_date = f"{current_year}-12-31"
 
-    if response.status_code == 200:
-        news_data = response.json().get("data", [])
-        sentiment_aggregation = response.json().get("sentiment-data-agg", [])
-    else:
-        print("Error fetching news data:", response.text)
-        news_data = []
+        data = {
+            "name": name,
+            "flag": "Entity",
+            "company": "",
+            "domain": [""],
+            "start_date": start_date,
+            "end_date": end_date,
+            "country": country,
+            "request_type": "single"
+        }
 
-    # Get current year for filtering
-    current_year = datetime.now().year
+        response = requests.post(url, headers=headers, json=data)
+        print(f"Checking news for year {current_year}...")
 
-    for record in news_data:
+        if response.status_code == 200:
+            year_news = response.json().get("data", [])
+            print(f"Found {len(year_news)} news articles for {current_year}")
+            if isinstance(year_news, list):
+                print("data is a list")
+                if len(year_news)>0:
+                    valid_or_not = year_news[0].get("link", 'N/A')
+                else:
+                    valid_or_not = 'N/A'
+            else:
+                valid_or_not = 'N/A'
+            if valid_or_not == 'N/A':
+                print("link is not present skipping")
+                current_year -= 1
+                continue
+            news_data.extend(year_news)
+            total_news += len(year_news)
+
+            if total_news >= 5:
+                break
+        else:
+            print(f"Error fetching news for {current_year}: {response.status_code}")
+
+        current_year -= 1  # Move to the previous year
+
+    print(f"Total news collected: {total_news}")
+
+    if not news_data:
+        print("No relevant news found.")
+        return {"ens_id": ens_id, "module": "NEWS", "status": "completed"}
+
+    # Process the collected news
+    NWS1A["kpi_details"] = "Following Additional Screening:\n"
+    NWS1A["kpi_value"] = ''
+
+    current_year = datetime.now().year  # Get current year for filtering
+
+    for i, record in enumerate(news_data):
         sentiment = record.get("sentiment", "").lower()
         news_date = record.get("date", "")
         category = record.get("category", "").strip().lower()
+        summary = record.get("summary", "").strip()
+        title = record.get("title", "").strip()
+        link = record.get("link", "").strip()
 
-        # Ensure sentiment is "Negative" and date is within the last 5 years
         if sentiment == "negative" and news_date:
             try:
                 news_date_obj = datetime.strptime(news_date, "%Y-%m-%d")
                 news_time_period = current_year - news_date_obj.year
 
                 if news_time_period <= 5:
-                    # Determine which KPI to update based on category
-                    if category == "general":
-                        kpi = NWS1A
-                    elif category == "adverse media - business ethics / reputational risk / code of conduct":
-                        kpi = NWS1B
-                    elif category == "bribery / corruption / fraud":
-                        kpi = NWS1C
-                    elif category == "regulatory":
-                        kpi = NWS1D
-                    elif category == "adverse media - other criminal activity":
-                        kpi = NWS1E
-                    else:
+                    # Categorize the news item
+                    category_map = {
+                        "general": "Adverse Media finding",
+                        "adverse media - business ethics / reputational risk / code of conduct": "Adverse Media - Other Reputational Risk",
+                        "bribery / corruption / fraud": "Bribery, Fraud or Corruption",
+                        "regulatory": "Regulation",
+                        "adverse media - other criminal activity": "Adverse Media - Other Criminal Activities"
+                    }
+
+                    cat = category_map.get(category, None)
+                    if not cat:
                         continue
 
-                    # Update KPI details
-                    kpi["kpi_flag"] = True
-                    if kpi["kpi_value"] is None:
-                        kpi["kpi_value"] = record["title"]
-                    else:
-                        kpi["kpi_value"] += f"; {record['title']}"
-
-                    kpi["kpi_rating"] = "High"
-                    kpi["kpi_details"] = f"Negative news found in category '{kpi['kpi_definition']}' ({category}) dated {news_date}."
+                    # Update KPI
+                    NWS1A["kpi_flag"] = True
+                    NWS1A["kpi_value"] += f"; {title}"
+                    NWS1A["kpi_rating"] = "High"
+                    NWS1A[
+                        "kpi_details"] += f"{i + 1}. {cat}: {title} - {summary}\n Source: {link} (Date: {news_date_obj})\n"
 
             except ValueError:
                 continue
 
-    kpi_list = [NWS1A, NWS1B, NWS1C, NWS1D, NWS1E]
+    kpi_list = [NWS1A]
+    print("kpi_list:", kpi_list)
 
-    # TBD: Do we insert blank KPIs as well - currently using
     insert_status = await upsert_kpi("news", kpi_list, ens_id, session_id, session)
-    print(insert_status)
 
-    # Prepare data for database insertion
-    columns_data =[{
-        "sentiment_aggregation": sentiment_aggregation
+    columns_data = [{
+        "sentiment_aggregation": response.json().get("sentiment-data-agg", [])
     }]
     print(columns_data)
-    # Update the database with the JSON data
+
     await insert_dynamic_ens_data("report_plot", columns_data, ens_id, session_id, session)
 
-    print(f"Stored in the database")
-
+    print("Stored in the database")
     print("Performing News Screening Analysis for Company... Completed")
 
     return {"ens_id": ens_id, "module": "NEWS", "status": "completed"}
@@ -204,7 +228,7 @@ async def orbis_news_analysis(data, session):
                         risk_rating_trigger = True
                 except:
                     event_date = "Unavailable"
-                text = f"{i+1}. {event.get('TITLE')}: {event.get('TOPIC')} - {truncate_string(event.get("ARTICLE"))} (Date: {event.get("DATE")[:10]})\n"
+                text = f"{i+1}. {event.get("TITLE")}: {event.get("TOPIC")} - {truncate_string(event.get("ARTICLE"))} \n Source:{event.get("SOURCE", "N/A")} | Publication: {event.get("PUBLICATION", "N/A")} | (Date: {event.get("DATE")[:10]})\n"
                 onf_events.append(event_dict)
                 onf_events_detail += text
                 i+=1

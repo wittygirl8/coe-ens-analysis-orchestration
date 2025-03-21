@@ -63,7 +63,11 @@ async def adverse_media_analysis(data, session):
             details = "Criminal activity discovered: \n"
             risk_rating_trigger = False
             for amo in adv:
-                key=(amo.get("eventDate"),amo.get("eventCategory"),amo.get("eventSubCategory"),amo.get("eventDesc"))
+
+                if "no" in amo.get("eventDate","").lower():
+                    amo["eventDate"] = "No Date"
+
+                key=(amo.get("eventDate"), amo.get("eventDesc"))
                 if key in unique_adv:
                     continue
                 unique_adv.add(key)
@@ -94,7 +98,7 @@ async def adverse_media_analysis(data, session):
 
             kpi_value_overall_dict = {
                 "count": len(criminal_activities) if len(criminal_activities) < 6 else "5 or more",
-                "target": "org",  # Since this is organization level
+                "target": "org",
                 "findings": criminal_activities,
                 "themes": [a.get("eventsub") for a in criminal_activities]
             }
@@ -233,7 +237,11 @@ async def adverse_media_reputation_risk(data, session):
             details = "Reputation risk due to the following events:\n"
             risk_rating_trigger = False
             for adv in adv:
-                key = (adv.get("eventDate"), adv.get("eventCategory"), adv.get("eventSubCategory"), adv.get("eventDesc"))
+
+                if "no" in adv.get("eventDate", "").lower():
+                    adv["eventDate"] = "No Date"
+
+                key = (adv.get("eventDate"), adv.get("eventDesc"))
                 if key in unique_adv:
                     continue
                 unique_adv.add(key)
@@ -263,7 +271,7 @@ async def adverse_media_reputation_risk(data, session):
                     break
             kpi_value_overall_dict = {
                 "count": len(reputation_risks) if len(reputation_risks) < 6 else "5 or more",
-                "target": "person",  # Since this is person level
+                "target": "org",
                 "findings": reputation_risks,
                 "themes": [a.get("eventsub") for a in reputation_risks]
             }
@@ -400,7 +408,11 @@ async def bribery_corruption_fraud_analysis(data, session):
             risk_rating_trigger = False
             bcf_events_detail = "Risk identified due to the following events:\n"
             for event in bcf:
-                key = (event.get("eventDate"), event.get("eventCategory"), event.get("eventSubCategory"), event.get("eventDesc"))
+
+                if "no" in event.get("eventDate", "").lower():
+                    event["eventDate"] = "No Date"
+
+                key = (event.get("eventDate"), event.get("eventDesc"))
                 if key in unique_bcf:
                     continue
                 unique_bcf.add(key)
@@ -419,7 +431,7 @@ async def bribery_corruption_fraud_analysis(data, session):
                         risk_rating_trigger = True
                 except:
                     event_date = "Unavailable"
-                text = f"{i+1}. {event.get('eventCategoryDesc')}: {event.get('eventSubCategoryDesc')} - {truncate_string(event.get("eventDesc"))} (Date: {event.get("eventDate")})\n"
+                text = f"{i+1}. {event.get("eventCategoryDesc")}: {event.get("eventSubCategoryDesc")} - {truncate_string(event.get("eventDesc"))} (Date: {event.get("eventDate")})\n"
                 bcf_events.append(event_dict)
                 bcf_events_detail += text
                 i+=1
@@ -427,7 +439,7 @@ async def bribery_corruption_fraud_analysis(data, session):
                     break
             kpi_value_overall_dict = {
                 "count": len(bcf_events) if len(bcf_events) < 6 else "5 or more",
-                "target": "person",  # Since this is person level
+                "target": "org",
                 "findings": bcf_events,
                 "themes": [a.get("eventsub") for a in bcf_events]
             }
@@ -508,6 +520,7 @@ async def bribery_corruption_fraud_analysis(data, session):
 
 
 async def regulatory_analysis(data, session):
+    module_activation = False
 
     print("Performing Regulatory Analysis...")
 
@@ -515,6 +528,9 @@ async def regulatory_analysis(data, session):
 
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
+
+    if not module_activation:
+        return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "module_deactivated"}
 
     try:
 
@@ -569,7 +585,11 @@ async def regulatory_analysis(data, session):
             reg_events_detail = "Risk identified due to the following events:\n"
 
             for event in reg:
-                key = (event.get("eventDate"), event.get("eventCategory"), event.get("eventSubCategory"), event.get("eventDesc"))
+
+                if "no" in event.get("eventDate", "").lower():
+                    event["eventDate"] = "No Date"
+
+                key = (event.get("eventDate"), event.get("eventDesc"))
                 if key in unique_reg:
                     continue
                 unique_reg.add(key)
@@ -588,7 +608,7 @@ async def regulatory_analysis(data, session):
                         risk_rating_trigger = True
                 except:
                     event_date = "Unavailable"
-                text = f"{i+1}. {event.get('eventCategoryDesc')}: {event.get('eventSubCategoryDesc')} - {truncate_string(event.get("eventDesc"))}(Date: {event.get("eventDate")})\n"
+                text = f"{i+1}. {event.get("eventCategoryDesc")}: {event.get("eventSubCategoryDesc")} - {truncate_string(event.get("eventDesc"))}(Date: {event.get("eventDate")})\n"
                 reg_events.append(event_dict)
                 reg_events_detail += text
                 i+=1
@@ -596,7 +616,7 @@ async def regulatory_analysis(data, session):
                     break
             kpi_value_overall_dict = {
                 "count": len(reg_events) if len(reg_events) < 6 else "5 or more",
-                "target": "person",  # Since this is person level
+                "target": "org",
                 "findings": reg_events,
                 "themes": [a.get("eventsub") for a in reg_events]
             }
@@ -646,7 +666,7 @@ async def regulatory_analysis(data, session):
                     break
             kpi_value_overall_dict = {
                 "count": len(reg_activities) if len(reg_activities) < 6 else "5 or more",
-                "target": "person",  # Since this is person level
+                "target": "person",
                 "findings": reg_activities,
                 "themes": [a.get("eventsub") for a in reg_activities]
             }

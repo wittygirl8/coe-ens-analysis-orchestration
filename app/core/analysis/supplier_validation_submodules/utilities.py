@@ -96,7 +96,7 @@ def filter_supplier_data(json_data, max_results:int):
     if selected_matches:
         # Return the first selected match found
         matched = True
-        return selected_matches, matched, potential_pass
+        return selected_matches,potential_pass, matched
     
     # If no 'Selected' matches, check for 'Potential' matches with score > 0.80
     potential_matches = [supplier for supplier in supplier_data 
@@ -108,10 +108,13 @@ def filter_supplier_data(json_data, max_results:int):
         potential_pass = True
         # Sort potential matches by score in descending order and return top 2
         sorted_potential_matches = sorted(potential_matches, key=lambda x: x['MATCH']['0']['SCORE'], reverse=True)
-        return sorted_potential_matches[:max_results], matched, potential_pass
+        return sorted_potential_matches[:max_results], potential_pass, matched
     
     # If no 'Selected' or 'Potential' matches with score > 0.80, return the top scoring match
     top_scoring_match = max(supplier_data, key=lambda x: x['MATCH']['0'].get('SCORE', 0))
+
+    if top_scoring_match:
+        potential_pass = True
     
     return [top_scoring_match], potential_pass, matched
 

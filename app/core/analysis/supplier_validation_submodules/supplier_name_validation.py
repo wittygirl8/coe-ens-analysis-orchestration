@@ -58,7 +58,14 @@ async def supplier_name_validation(data, session, search_engine:str):
     incoming_country = data["uploaded_country"]
     incoming_name = data["uploaded_name"]
     session_id = data["session_id"]
-    national_id = data["national_id"]
+    national_id = data["uploaded_national_id"]
+
+    incoming_address = data.get("uploaded_address", "") if len(data.get("uploaded_address", ""))>0 else "None"
+    incoming_city = data.get("uploaded_city", "") if len(data.get("uploaded_city", ""))>0 else "None"
+    incoming_postcode = data.get("uploaded_postcode", "") if len(data.get("uploaded_postcode", ""))>0 else "None"
+    incoming_email = data.get("uploaded_email_or_website", "") if len(data.get("uploaded_email_or_website", ""))>0 else "None"
+    incoming_p_o_f = data.get("uploaded_phone_or_fax", "") if len(data.get("uploaded_phone_or_fax", ""))>0 else "None"
+    incoming_state = data.get("uploaded_state", "") if len(data.get("uploaded_state", ""))>0 else "None"
 
     log.info("================================================")
     log.info(f"[SNV] ens_id = {incoming_ens_id}")
@@ -89,9 +96,9 @@ async def supplier_name_validation(data, session, search_engine:str):
             "state": quote(payload["state"]),
             "city": quote(payload["city"]),
             "address": quote(payload["address"]),
-            "postcode": quote(payload["postcode"]),
-            "email": quote(payload["email"]),
-            "phone_or_fax": quote(payload["phone_or_fax"])  
+            "postCode": quote(payload["postcode"]),
+            "emailOrWebsite": quote(payload["email"]),
+            "phoneOrFax": quote(payload["phone_or_fax"])
         }
         query_string = "&".join(f"{key}={value}" for key, value in query_params.items())
         url = f"{base_url}?{query_string}"
@@ -120,7 +127,9 @@ async def supplier_name_validation(data, session, search_engine:str):
                 # Extract supplier data from response
                 supplier_data, potential_pass, matched = filter_supplier_data(response_json, max_results=2)
                 # Debugging: Print parsed response (only in dev mode)
-                print("\n\nAPI Parsed JSON >>>", json.dumps(response_json, indent=2))
+                # print("\n\nAPI Parsed JSON >>>", json.dumps(response_json, indent=2))
+                print("MATCHED -----")
+                print(json.dumps(supplier_data, indent=2))
                 return supplier_data, potential_pass, matched
 
             except requests.exceptions.RequestException as e:
@@ -142,13 +151,14 @@ async def supplier_name_validation(data, session, search_engine:str):
         "ensId": str(incoming_ens_id),
         "sessionId": str(data["session_id"]),
         "nationalId":str(national_id),
-        "address": str(data["address"]),
-        "city": str(data["city"]),
-        "postcode": str(data["postcode"]),
-        "email": str(data["email_or_website"]),
-        "phone_or_fax":str(data["phone_or_fax"]),
-        "state": str(data["state"])
-    }   
+        "address": str(incoming_address),
+        "city": str(incoming_city),
+        "postcode": str(incoming_postcode),
+        "email": str(incoming_email),
+        "phone_or_fax":str(incoming_p_o_f),
+        "state": str(incoming_state)
+    }
+
 
     supplier_data, potential_pass, matched= get_possible_suppliers(match_payload, static_case=False)
     log.info(f"[SNV] Matched Status: {matched}")
@@ -240,7 +250,16 @@ async def supplier_name_validation(data, session, search_engine:str):
             # TODO: Worst case scenario - passing out the top scoring element from orbis match
             if supplier_data:
 
-                temp = supplier_data[0]
+                temp = supplier_data[0]  # Extract the first entry
+                # TEMP LOGIC TO IMPROVE MATCHES
+                for match in supplier_data:
+                    print(national_id)
+                    print(str(match.get('MATCH', {}).get('0', {}).get('NATIONAL_ID', 'N/A')))
+                    if str(match.get('MATCH', {}).get('0', {}).get('NATIONAL_ID', 'N/A')) == national_id:
+                        print("THIS MATCH -------------")
+                        temp = match
+
+                print(json.dumps(temp, indent=2))
 
                 agg_verified = agg_output['verified']  # This can be True, False, or None
                 # Map the boolean value to the appropriate TruesightStatus enum value
@@ -270,14 +289,16 @@ async def supplier_name_validation(data, session, search_engine:str):
                 "suggested_address_type": str(temp.get('MATCH', {}).get('0', {}).get('ADDRESS_TYPE', 'N/A'))
                 }
 
-                duplicate = await check_and_update_unique_value(
+                print("ENSID BEFORE-------", incoming_ens_id)
+                processed_ens_id, duplicate = await check_and_update_unique_value(
                 table_name="upload_supplier_master_data",
                 column_name="suggested_bvd_id",
                 bvd_id_to_check=f"{temp.get('BVDID', 'N/A')}",
                 ens_id=incoming_ens_id,
                 session=session
                 )
-
+                incoming_ens_id = processed_ens_id
+                print("ENS ID AFTER", incoming_ens_id)
                 if duplicate["status"] == "unique":
                     updated_data["pre_existing_bvdid"]=False
                 elif duplicate["status"] == "duplicate":
@@ -319,13 +340,16 @@ async def supplier_name_validation(data, session, search_engine:str):
                     "suggested_address_type":""
                 }
 
-                duplicate = await check_and_update_unique_value(
+                print("ENSID BEFORE-------", incoming_ens_id)
+                processed_ens_id, duplicate = await check_and_update_unique_value(
                     table_name="upload_supplier_master_data",
                     column_name="suggested_bvd_id",
                     bvd_id_to_check="",
                     ens_id=incoming_ens_id,
                     session=session
                 )
+                incoming_ens_id = processed_ens_id
+                print("ENS ID AFTER", incoming_ens_id)
                 if duplicate["status"] == "unique":
                     updated_data["pre_existing_bvdid"]=False
                 elif duplicate["status"] == "duplicate":
@@ -350,6 +374,16 @@ async def supplier_name_validation(data, session, search_engine:str):
             log.info("[SNV] == Bypassing L2 Validation == ")
             # This will work if there is only 1 record at a time where Hint is "Selected" or 1 high scoring potential match 
             temp = supplier_data[0]  # Extract the first entry
+            # TEMP LOGIC TO IMPROVE MATCHES
+            for match in supplier_data:
+                print(national_id)
+                print(str(match.get('MATCH', {}).get('0', {}).get('NATIONAL_ID', 'N/A')))
+                if str(match.get('MATCH', {}).get('0', {}).get('NATIONAL_ID', 'N/A')) == national_id:
+                    print("THIS MATCH -------------")
+                    temp = match
+
+            print(json.dumps(temp, indent=2))
+
             updated_data = {
                 "validation_status": ValidationStatus.VALIDATED,
                 "orbis_matched_status": OribisMatchStatus.MATCH,
@@ -382,13 +416,16 @@ async def supplier_name_validation(data, session, search_engine:str):
                 "suggested_address_type": str(temp.get('MATCH', {}).get('0', {}).get('ADDRESS_TYPE', 'N/A'))
             }
 
-            duplicate = await check_and_update_unique_value(
+            print("ENSID BEFORE-------", incoming_ens_id)
+            processed_ens_id, duplicate = await check_and_update_unique_value(
                 table_name="upload_supplier_master_data",
                 column_name="bvd_id",
                 bvd_id_to_check=temp.get('BVDID', 'N/A'),
                 ens_id=incoming_ens_id,
                 session=session
             )
+            incoming_ens_id = processed_ens_id
+            print("ENS ID AFTER", incoming_ens_id)
             if duplicate["status"] == "unique":
                 updated_data["pre_existing_bvdid"]=False
             elif duplicate["status"] == "duplicate":

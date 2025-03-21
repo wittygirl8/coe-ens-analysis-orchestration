@@ -26,8 +26,7 @@ from .summarization import bcf_summary
 from .summarization import state_ownership_summary
 from .summarization import financials_summary
 from .summarization import adverse_media_summary
-from .summarization import cybersecurity_summary
-from .summarization import esg_summary
+from .summarization import additional_indicators_summary
 from .summarization import legal_regulatory_summary
 from .summarization import overall_summary
 # import nltk
@@ -158,8 +157,7 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
         sco = await state_ownership_summary(data, session)
         financials = await financials_summary(data, session)
         adverse_media = await adverse_media_summary(data, session)
-        cyber = await cybersecurity_summary(data, session)
-        esg = await esg_summary(data, session)
+        additional_indicators = await additional_indicators_summary(data, session),
         regal = await legal_regulatory_summary(data, session)
         summary = await overall_summary(data, session, supplier_name=incoming_name)
         static_entries = {
@@ -171,8 +169,7 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
             'gov_summary': sco,
             'financial_summary': financials,
             'adv_summary': adverse_media,
-            'cyber_summary': cyber,
-            'esg_summary': esg,
+            'additional_indicators_summary': additional_indicators,
             'ral_summary': regal
         }
 
@@ -727,14 +724,10 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
 
         adverse_media = await adverse_media_summary(data, session)
 
-        cyber = await cybersecurity_summary(data, session)
-
-        esg = await esg_summary(data, session)
-
+        additional_indicators = await additional_indicators_summary(data, session)
         regal = await legal_regulatory_summary(data, session)
 
         summary = await overall_summary(data, session, supplier_name=incoming_name)
-
 
         static_entries = {
             'date': formatted_date,
@@ -745,8 +738,7 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
             'gov_summary': sco,
             'financial_summary': financials,
             'adv_summary': adverse_media,
-            'cyber_summary': cyber,
-            'esg_summary': esg,
+            'additional_indicators_summary': additional_indicators,
             'ral_summary': regal
         }
         context.update(static_entries)
@@ -908,7 +900,7 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
             elif not financial_df_2.empty:
                 temp = financials_data_2["financial"]
                 financial_data_2 = temp.to_dict(orient='records')
-                financial_data_2 = remove_time_keys(financials_data_2)
+                financial_data_2 = remove_time_keys(financial_data_2)
                 context["financial_findings"] = True
                 context["financial_data"] = financial_data_2
             else:
@@ -1092,7 +1084,6 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
                 temp = cyes_data["cybersecurity"]
                 cyes_data = temp.to_dict(orient='records')
                 cyes_data = remove_time_keys(cyes_data)
-                print("cyes data:", cyes_data)
                 context["additional_indicators_findings"] = True
                 context["additional_indicators_data"]=cyes_data
             else:
@@ -1116,10 +1107,12 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
         # doc.render(context)
         context["session_id"]=session_id
         context["ens_id"]=incoming_ens_id
+        context["disable-regulator-and-legal"] = True
         #Call orbis engine endpoint
+        # print("context", context)
         print("Retrieving Orbis - Report Generation..")
-        with open(f"123_{context.get("name")}.json", 'w')as file:
-            json.dump(context,file,indent=2)
+        # with open(f"123_{context.get("name")}.json", 'w')as file:
+        #     json.dump(context,file,indent=2)
         try:
             # Generate JWT token
             jwt_token = create_jwt_token("orchestration", "analysis")

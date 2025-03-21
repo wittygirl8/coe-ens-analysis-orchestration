@@ -135,6 +135,10 @@ async def pep_analysis(data, session):
 
             i = j = 0
             for record in pep_data:
+
+                if "no" in record.get("eventDate","").lower():
+                    record["eventDate"] = "No Date"
+
                 key = (record.get("eventDate"), record.get("eventCategory"), record.get("eventSubCategory"), record.get("eventDesc"))
                 if key in unique_pep_data:
                     continue
@@ -150,6 +154,9 @@ async def pep_analysis(data, session):
                     risk_rating_trigger_direct=True
                     time_period = 999  # Workaround temp
                     date_string = ""
+
+                if date_string == "As of [Unavailable Date]: ":
+                    date_string = "As of Latest Updated List: " #TODO TEST
 
 
                 event_category = record.get("eventCategory", None) # orbis grid version
@@ -217,7 +224,7 @@ async def pep_analysis(data, session):
             pep_kpis.append(PEP2A)
 
         print("# ------------------------------------------------------------ # PERSONS")
-        # ---------------------- SAN1B, 2B: Direct and Indirect for PERSON Level from table "grid_management"
+        # ---------------------- PEP1B, 2B: Direct and Indirect for PERSON Level from table "grid_management"
         all_person_pep_events = []
         unique_pep_entity_name = set()
         pep_lists_direct = pep_lists_indirect = []
@@ -243,7 +250,6 @@ async def pep_analysis(data, session):
                     risk_rating_trigger_direct=True
                     time_period = 999  # Workaround temp
                     date_string = ""
-
 
                 event_category = record.get("eventCategory", None)
                 event_subcategory = record.get("eventSubCategory", None)
@@ -320,15 +326,15 @@ async def pep_analysis(data, session):
                 else:
                     if person.get("name") not in unique_pep_entity_name:
                         PEP1B["kpi_flag"] = True
-                        details_direct += f"\n{j+1}.As of [Unavailable Date]:{person.get("name")}: On BVD StateList"
+                        details_direct += f"\n{j+1}{person.get("name")}: Potential Political Exposure Findings"
                         unique_pep_entity_name.add(person.get("name"))
                         event_dict = {
-                            "eventdt": "Unavailable",
+                            "eventdt": "",
                             "eventcat": "PEP",
-                            "eventsub": "BVD StateList",
+                            "eventsub": "Potential Political Exposure Findings",
                             "categoryDesc": "PEP",
                             "entityName": person.get("name"),
-                            "eventDesc": "On BVD StateList"
+                            "eventDesc": "Potential Political Exposure Findings"
                         }
                         pep_lists_direct.append(event_dict)
                         j += 1

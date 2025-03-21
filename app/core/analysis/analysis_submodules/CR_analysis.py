@@ -6,12 +6,17 @@ import datetime
 
 async def country_risk_analysis(data, session):
 
+    module_activation = False
+
     print("Performing Country Risk Analysis... Started")
 
     kpi_area_module = "CR"
 
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
+
+    if not module_activation:
+        return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "module_deactivated"}
 
     try:
 

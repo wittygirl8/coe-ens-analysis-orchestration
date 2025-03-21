@@ -72,7 +72,7 @@ async def esg_analysis(data, session):
             ESG1A["kpi_rating"] = "Medium"
             ESG1A["kpi_details"] = f"Medium Overall ESG Score: {esg_score}"
         elif esg_score >= 50:
-            ESG1A["kpi_flag"] = False
+            ESG1A["kpi_flag"] = True
             ESG1A["kpi_value"] = str(esg_score)
             ESG1A["kpi_rating"] = "Low"
             ESG1A["kpi_details"] = f"Strong Overall ESG Score: {esg_score}"
@@ -85,12 +85,12 @@ async def esg_analysis(data, session):
             ESG2A["kpi_rating"] = "INFO"
             ESG2A["kpi_details"] = f"No rating available"
         elif env_score <= 29:
-            ESG2A["kpi_flag"] = True
+            ESG2A["kpi_flag"] = False
             ESG2A["kpi_value"] = str(env_score)
             ESG2A["kpi_rating"] = "High"
             ESG2A["kpi_details"] = f"Weak Environmental Score: {env_score}"
         elif 30 <= env_score <= 49:
-            ESG2A["kpi_flag"] = True
+            ESG2A["kpi_flag"] = False
             ESG2A["kpi_value"] = str(env_score)
             ESG2A["kpi_rating"] = "Medium"
             ESG2A["kpi_details"] = f"Medium Environmental Score: {env_score}"
@@ -107,12 +107,12 @@ async def esg_analysis(data, session):
             ESG2B["kpi_rating"] = "INFO"
             ESG2B["kpi_details"] = f"No rating available"
         elif soc_score <= 29:
-            ESG2B["kpi_flag"] = True
+            ESG2B["kpi_flag"] = False
             ESG2B["kpi_value"] = str(soc_score)
             ESG2B["kpi_rating"] = "High"
             ESG2B["kpi_details"] = f"Weak Social Score: {soc_score}"
         elif 30 <= soc_score <= 49:
-            ESG2B["kpi_flag"] = True
+            ESG2B["kpi_flag"] = False
             ESG2B["kpi_value"] = str(soc_score)
             ESG2B["kpi_rating"] = "Medium"
             ESG2B["kpi_details"] = f"Medium Social Score: {soc_score}"
@@ -129,12 +129,12 @@ async def esg_analysis(data, session):
             ESG2C["kpi_rating"] = "INFO"
             ESG2C["kpi_details"] = f"No rating available"
         elif gov_score <= 29:
-            ESG2C["kpi_flag"] = True
+            ESG2C["kpi_flag"] = False
             ESG2C["kpi_value"] = str(gov_score)
             ESG2C["kpi_rating"] = "High"
             ESG2C["kpi_details"] = f"Weak Governance Score: {gov_score}"
         elif 30 <= gov_score <= 49:
-            ESG2C["kpi_flag"] = True
+            ESG2C["kpi_flag"] = False
             ESG2C["kpi_value"] = str(gov_score)
             ESG2C["kpi_rating"] = "Medium"
             ESG2C["kpi_details"] = f"Medium Governance Score: {gov_score}"
@@ -225,7 +225,7 @@ async def cyber_analysis(data, session):
                 CYB1A["kpi_rating"] = "Medium"
                 CYB1A["kpi_details"] = f"Medium Cyber Risk Rating: {cyber_rating}"
             elif 750 < cyber_rating <= 900:
-                CYB1A["kpi_flag"] = False
+                CYB1A["kpi_flag"] = True
                 CYB1A["kpi_value"] = str(cyber_rating)
                 CYB1A["kpi_rating"] = "Low"
                 CYB1A["kpi_details"] = f"Low Cyber Risk Rating: {cyber_rating}"
@@ -253,7 +253,7 @@ async def cyber_analysis(data, session):
                 CYB1B["kpi_rating"] = "Medium"
                 CYB1B["kpi_details"] = f"Medium Implied Cyber Risk"
             elif "low" in implied_cyber_risk.lower():
-                CYB1B["kpi_flag"] = False
+                CYB1B["kpi_flag"] = True
                 CYB1B["kpi_value"] = str(implied_cyber_risk)
                 CYB1B["kpi_rating"] = "Low"
                 CYB1B["kpi_details"] = f"Low Implied Cyber Risk"
@@ -281,7 +281,7 @@ async def cyber_analysis(data, session):
                 CYB2A["kpi_rating"] = "Medium"
                 CYB2A["kpi_details"] = "Final Cyber Risk Rating: Medium"
             elif CYB1B["kpi_rating"] == "Low":
-                CYB2A["kpi_flag"] = False
+                CYB2A["kpi_flag"] = True
                 CYB2A["kpi_value"] = ""
                 CYB2A["kpi_rating"] = "Low"
                 CYB2A["kpi_details"] = "Final Cyber Risk Rating: Low"
@@ -298,7 +298,7 @@ async def cyber_analysis(data, session):
                 CYB2A["kpi_rating"] = "Medium"
                 CYB2A["kpi_details"] = "Final Cyber Risk Rating: Medium (Based on Implied Risk)"
             elif CYB1B["kpi_rating"] == "Low":
-                CYB2A["kpi_flag"] = False
+                CYB2A["kpi_flag"] = True
                 CYB2A["kpi_value"] = ""
                 CYB2A["kpi_rating"] = "Low"
                 CYB2A["kpi_details"] = "Final Cyber Risk Rating: Low (Based on Implied Risk)"
