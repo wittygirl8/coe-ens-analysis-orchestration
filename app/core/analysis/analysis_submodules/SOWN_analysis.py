@@ -326,8 +326,8 @@ async def pep_analysis(data, session):
                 else:
                     if person.get("name") not in unique_pep_entity_name:
                         PEP1B["kpi_flag"] = True
-                        details_direct += f"\n{j+1}{person.get("name")}: Potential Political Exposure Findings"
-                        unique_pep_entity_name.add(person.get("name"))
+                        details_direct += f"\n{j+1}{person.get('name')}: Potential Political Exposure Findings"
+                        unique_pep_entity_name.add(person.get('name'))
                         event_dict = {
                             "eventdt": "",
                             "eventcat": "PEP",
