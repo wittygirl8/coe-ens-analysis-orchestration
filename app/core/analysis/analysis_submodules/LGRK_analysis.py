@@ -89,9 +89,9 @@ async def legal_analysis(data, session):
             except:
                 event_date = "Unavailable"
             text = f"""
-                    {event.get("eventCategory")} - {event.get("eventCategoryDesc")} (Date: {event_date})
+                    {event.get('eventCategory')} - {event.get('eventCategoryDesc')} (Date: {event_date})
                     \n
-                    {truncate_string(event.get("eventDesc"))}
+                    {truncate_string(event.get('eventDesc'))}
                     \n
                 """
             legal_lists_direct.append(event_dict)
