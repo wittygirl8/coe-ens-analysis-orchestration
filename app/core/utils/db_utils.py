@@ -9,6 +9,8 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.core.database_session import _ASYNC_ENGINE, SessionFactory
 
+from app.schemas.logger import logger
+
 # Update KPI to Dtabase
 # columns_data = {"kpi_area": "ESG","kpi_code": "ESG1C", "kpi_flag": False,"kpi_value": None,"kpi_details": ""}
 # async def update_dynamic_ens_data(table_name: str, columns_data: dict, ens_id: str):
@@ -210,6 +212,54 @@ async def upsert_dynamic_ens_data(
         query = insert(table_class).values(rows_to_insert).on_conflict_do_update(
             index_elements=["ens_id", "session_id"],  # Conflict columns
             set_={col: getattr(insert(table_class).excluded, col) for col in rows_to_insert[0].keys() if col not in ["ens_id", "session_id"]}
+        )
+
+        # Execute the query
+        await session.execute(query)
+
+        # Commit the transaction
+        await session.commit()
+        await session.close()
+
+        return {"status": "success", "message": f"Upserted {len(rows_to_insert)} rows successfully."}
+
+    except ValueError as ve:
+        print(f"Error: {ve}")
+        return {"error": str(ve), "status": "failure"}
+
+    except SQLAlchemyError as sa_err:
+        print(f"Database error: {sa_err}")
+        return {"error": "Database error", "status": "failure"}
+
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return {"error": "An unexpected error occurred", "status": "failure"}
+
+async def upsert_dynamic_ens_data_summary(
+    table_name: str,
+    columns_data: list,
+    ens_id: str,
+    session_id: str,
+    session: AsyncSession = Depends(deps.get_session)
+):
+    try:
+        session = SessionFactory()
+
+        # Get the table class dynamically
+        table_class = Base.metadata.tables.get(table_name)
+        if table_class is None:
+            raise ValueError(f"Table '{table_name}' does not exist in the database schema.")
+
+        # Add `ens_id` and `session_id` to each row in `columns_data`
+        rows_to_insert = [
+            {**row, "ens_id": ens_id, "session_id": session_id}
+            for row in columns_data
+        ]
+
+        # Build the UPSERT query (Insert with conflict handling)
+        query = insert(table_class).values(rows_to_insert).on_conflict_do_update(
+            index_elements=["ens_id", "session_id", "area"],  # Conflict columns
+            set_={col: getattr(insert(table_class).excluded, col) for col in rows_to_insert[0].keys() if col not in ["ens_id", "session_id", "area"]}
         )
 
         # Execute the query
@@ -547,9 +597,9 @@ async def check_and_update_unique_value(
 
         if existing_rows: # EXISTING ENS-IDs WITH SAME BVDID AS CURRENT ROW
 
-            print("----------- BVDID ALREADY EXISTS")
+            logger.info("----------- BVDID ALREADY EXISTS")
             latest_ens_id = existing_rows[0]
-            print("PRE-EXISTING ENS_ID ----> ", latest_ens_id)
+            logger.info("PRE-EXISTING ENS_ID ----> %s", latest_ens_id)
 
             # Step 2: If value exists, update pre_existing_bvdid to 'Yes' for all matching rows
             update_query = (
@@ -699,6 +749,65 @@ async def get_all_ensid_screening_status_static(
         # Return the formatted result
         await session.close()
         return formatted_res
+
+    except ValueError as ve:
+        # Handle the case where the table does not exist
+        print(f"Error: {ve}")
+        return []
+
+    except SQLAlchemyError as sa_err:
+        # Handle SQLAlchemy-specific errors
+        print(f"Database error: {sa_err}")
+        return []
+
+    except Exception as e:
+        # Catch any other exceptions
+        print(f"An unexpected error occurred: {e}")
+        return []
+
+async def update_for_ensid_svm_duplication(
+        columns_data: dict,
+        id: str,
+        session_id: str,
+        session: AsyncSession = Depends(deps.get_session)
+        ):
+    try:
+        session = SessionFactory()
+
+        # THIS FUNCTION IS ONLY FOR NAME VALIDATION PROCESS
+        table_name = "upload_supplier_master_data"
+
+        # Get the table class dynamically
+        table_class = Base.metadata.tables.get(table_name)
+        if table_class is None:
+            raise ValueError(f"Table '{table_name}' does not exist in the database schema.")
+
+        # Prepare the update values
+        update_values = {key: value for key, value in columns_data.items() if value is not None}
+
+        # Initialize the base update query
+        query = update(table_class).values(update_values)
+
+        # Define conditions dynamically
+        conditions = []
+        if id:
+            conditions.append(table_class.c.id == id)
+        if session_id:
+            conditions.append(table_class.c.session_id == str(session_id))
+
+        # Apply conditions if there are any
+        if conditions:
+            query = query.where(and_(*conditions))
+
+        # Execute the query
+        result = await session.execute(query)
+
+        # Commit the transaction
+        await session.commit()
+
+        # Return success response
+        await session.close()
+        return {"status": "success", "message": "Data updated successfully."}
 
     except ValueError as ve:
         # Handle the case where the table does not exist

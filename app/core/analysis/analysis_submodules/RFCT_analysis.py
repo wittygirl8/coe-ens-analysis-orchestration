@@ -2,10 +2,10 @@ from datetime import datetime
 import asyncio
 from app.core.utils.db_utils import *
 import json
-
+from app.schemas.logger import logger
 async def adverse_media_analysis(data, session):
 
-    print("Performing Adverse Media Analysis for Other Criminal Activities...")
+    logger.warning("Performing Adverse Media Analysis for Other Criminal Activities...")
 
     kpi_area_module = "AMO"
 
@@ -50,7 +50,7 @@ async def adverse_media_analysis(data, session):
         person_info_none = all(person.get("grid_adverse_media_other_crimes", None) is None for person in person_retrieved_data)
 
         if person_info_none and (adv is None) and (grid_adv is None):
-            print(f"{kpi_area_module} Analysis... Completed With No Data")
+            logger.info(f"{kpi_area_module} Analysis... Completed With No Data")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "no_data"}
         # AMO1A - Adverse Media for Other Criminal Activities - Organization Level
         adv = (adv or []) + (grid_adv or [])  # TODO: ANOTHER WAY TO COMBINE THIS INFO IF IT OVERLAPS
@@ -84,6 +84,8 @@ async def adverse_media_analysis(data, session):
                     event_date = datetime.strptime(amo.get("eventDate"), "%Y-%m-%d")
                     # print("event_date")
                     event_year = current_year - event_date.year
+                    if event_year > 10:
+                        continue
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -137,6 +139,8 @@ async def adverse_media_analysis(data, session):
                 try:
                     event_date = datetime.strptime(amo.get("eventDate"), "%Y-%m-%d")
                     event_year = current_year - event_date.year
+                    if event_year > 10:
+                        continue
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -164,20 +168,20 @@ async def adverse_media_analysis(data, session):
         insert_status = await upsert_kpi("rfct", amo_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
-            print(insert_status)
+            logger.error(insert_status)
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure","info": "database_saving_error"}
 
     except Exception as e:
-        print(f"Error in module: {kpi_area_module} : {str(e)}")
+        logger.error(f"Error in module: {kpi_area_module} : {str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}
 
 
 async def adverse_media_reputation_risk(data, session):
 
-    print("Performing Adverse Media Analysis for Business Ethics / Reputational Risk / Code of Conduct...")
+    logger.warning("Performing Adverse Media Analysis for Business Ethics / Reputational Risk / Code of Conduct...")
 
     kpi_area_module = "AMR"
 
@@ -256,6 +260,8 @@ async def adverse_media_reputation_risk(data, session):
                 try:
                     event_date = datetime.strptime(adv.get("eventDate"), "%Y-%m-%d")
                     event_year = current_year - event_date.year
+                    if event_year > 10:
+                        continue
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -308,6 +314,8 @@ async def adverse_media_reputation_risk(data, session):
                 try:
                     event_date = datetime.strptime(amr.get("eventDate"), "%Y-%m-%d")
                     event_year = current_year - event_date.year
+                    if event_year > 10:
+                        continue
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -336,20 +344,20 @@ async def adverse_media_reputation_risk(data, session):
         insert_status = await upsert_kpi("rfct", amr_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
-            print(insert_status)
+            logger.error(insert_status)
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure",
                     "info": "database_saving_error"}
 
     except Exception as e:
-        print(f"Error in module: {kpi_area_module}: {str(e)}")
+        logger.error(f"Error in module: {kpi_area_module}: {str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}
 
 
 async def bribery_corruption_fraud_analysis(data, session):
-    print("Performing Adverse Media Analysis - BCF...")
+    logger.warning("Performing Adverse Media Analysis - BCF...")
 
     kpi_area_module = "BCF"
 
@@ -427,6 +435,8 @@ async def bribery_corruption_fraud_analysis(data, session):
                 try:
                     event_date = datetime.strptime(event.get("eventDate"), "%Y-%m-%d")
                     event_year = current_year - event_date.year
+                    if event_year > 10:
+                        continue
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -478,6 +488,8 @@ async def bribery_corruption_fraud_analysis(data, session):
                 try:
                     event_date = datetime.strptime(bcf.get("eventDate"), "%Y-%m-%d")
                     event_year = current_year - event_date.year
+                    if event_year > 10:
+                        continue
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -507,22 +519,22 @@ async def bribery_corruption_fraud_analysis(data, session):
         insert_status = await upsert_kpi("rfct", bcf_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
-            print(insert_status)
+            logger.error(insert_status)
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure",
                     "info": "database_saving_error"}
 
     except Exception as e:
-        print(f"Error in module: {kpi_area_module} : {str(e)}")
+        logger.error(f"Error in module: {kpi_area_module} : {str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}
 
 
 async def regulatory_analysis(data, session):
     module_activation = False
 
-    print("Performing Regulatory Analysis...")
+    logger.warning("Performing Regulatory Analysis...")
 
     kpi_area_module = "REG"
 
@@ -604,6 +616,8 @@ async def regulatory_analysis(data, session):
                 try:
                     event_date = datetime.strptime(event.get("eventDate"), "%Y-%m-%d")
                     event_year = current_year - event_date.year
+                    if event_year > 10:
+                        continue
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -646,6 +660,8 @@ async def regulatory_analysis(data, session):
                 try:
                     event_date = datetime.strptime(reg.get("eventDate"), "%Y-%m-%d")
                     event_year = current_year - event_date.year
+                    if event_year > 10:
+                        continue
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -681,15 +697,15 @@ async def regulatory_analysis(data, session):
         insert_status = await upsert_kpi("rfct", reg_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
-            print(insert_status)
+            logger.error(insert_status)
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure",
                     "info": "database_saving_error"}
 
     except Exception as e:
-        print(f"Error in module: {kpi_area_module}:{str(e)}")
+        logger.error(f"Error in module: {kpi_area_module}:{str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}
 
 

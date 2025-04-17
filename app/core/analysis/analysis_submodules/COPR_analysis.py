@@ -1,11 +1,11 @@
 import json
-
 from app.core.utils.db_utils import get_dynamic_ens_data
 from app.core.utils.db_utils import *
 import re
+from app.schemas.logger import logger
 
 async def company_profile(data, session):
-    print("Performing Company Profile...")
+    logger.warning("Performing Company Profile...")
 
     ens_id = data.get("ens_id")
     session_id = data.get("session_id")
@@ -16,7 +16,8 @@ async def company_profile(data, session):
     retrieved_data = await get_dynamic_ens_data("external_supplier_data", required_columns, ens_id,
                                                 session_id, session)
     retrieved_data = retrieved_data[0]
-    print("Processing retrieved company data...")
+    logger.warning(f"retrieved data: {retrieved_data}")
+    logger.warning("Processing retrieved company data...")
 
     supplier_master_data = await get_dynamic_ens_data("supplier_master_data", ["national_id"], ens_id,
                                                       session_id, session)
@@ -33,6 +34,7 @@ async def company_profile(data, session):
     def format_shareholders(shareholders):
         if isinstance(shareholders, list):
             found_count = 0
+            total_count = len(shareholders)
             top_shareholders = shareholders
             formatted_shareholders = []
             for shareholder in top_shareholders:
@@ -40,12 +42,12 @@ async def company_profile(data, session):
                     name = shareholder.get("name", "")
                     ownership = shareholder.get("direct_ownership", "-")
                     if ownership is None:
-                        continue
-                    if ownership == "-":
-                        continue  # SKIP
-                    if ownership == "n.a.":
                         ownership_string = ""
-                    if "ng" in ownership.lower():
+                    elif ownership == "-":
+                        ownership_string = ""
+                    elif ownership == "n.a.":
+                        ownership_string = ""
+                    elif "ng" in ownership.lower():
                         ownership_string = " (<= 0.01%)"
                     elif "fc" in ownership.lower():
                         ownership_string = " (Foreign company)"
@@ -69,15 +71,23 @@ async def company_profile(data, session):
                         ownership_string = " (Branch)"
                     elif "cqp1" in ownership.lower():
                         ownership_string = " (50% + 1 Share)"
+                    elif ownership.lower().strip().startswith(">"):
+                        ownership_string = f" ({ownership}%)"
+                    elif ownership.lower().strip().startswith("<"):
+                        ownership_string = f" ({ownership}%)"
                     elif not re.match(r'^\d', ownership):
                         ownership_string = ""
                     else:
                         ownership_string = f" ({ownership}%)"
                     formatted_shareholders.append(f"{name}{ownership_string}")
                     found_count += 1
-                    if found_count > 6:  # Limit to 7 shareholders
+                    if found_count >= 7:  # Limit to 7 shareholders
                         break
-            return "\n\n".join(formatted_shareholders)  # Double newline break
+
+            if total_count > 7:
+                formatted_shareholders.append(f"& {total_count - 7} more shareholders")
+
+            return "\n\n".join(formatted_shareholders)
         return None
 
     def format_national_identifier(national_identifier, national_identifier_type, supplier_national_id):
@@ -94,17 +104,21 @@ async def company_profile(data, session):
 
     def management_names(management):
         if isinstance(management, list):
+            total_count = len(management)
             management = management[:7]
-            return "\n".join([person.get("name", "") for person in management if
-                              isinstance(person, dict) and "name" in person])
+            names = [person.get("name", "") for person in management if isinstance(person, dict) and "name" in person]
+            if total_count > 7:
+                names.append(f"\n& {total_count - 7} more key executives")
+            return "\n".join(names)
         return None
 
     def format_revenue(revenue_data):
         if isinstance(revenue_data, list) and revenue_data:
             latest_revenue = revenue_data[0].get("value")
-            latest_date = revenue_data[0].get("closing_date","")
+            latest_date = revenue_data[0].get("closing_date", "")
             if latest_revenue is not None:
-                return f"{format_revenue_num(latest_revenue)} (USD - {latest_date})"
+                formatted_value = format_revenue_num(latest_revenue)
+                return f"{formatted_value} (USD - {latest_date})"
         return None
 
     def format_revenue_num(value_str):
@@ -114,6 +128,8 @@ async def company_profile(data, session):
                 return f"{value / 1_000_000_000:.0f}B"
             elif value >= 1_000_000:
                 return f"{value / 1_000_000:.0f}M"
+            else:
+                return f"{value:,.0f}"
         except:
             return value_str
 
@@ -148,13 +164,13 @@ async def company_profile(data, session):
         "key_executives": management_names(retrieved_data.get("management")),
         "employee": f"{retrieved_data.get('no_of_employee')} employees" if retrieved_data.get("no_of_employee") else None
     }
-    print(json.dumps(company_data, indent=2))
+    logger.info(json.dumps(company_data, indent=2))
     columns_data = [company_data]
     result = await upsert_dynamic_ens_data("company_profile", columns_data, ens_id, session_id, session)
 
     if result.get("status") == "success":
-        print("Company profile saved successfully.")
+        logger.warning("Company profile saved successfully.")
     else:
-        print(f"Error saving company profile: {result.get('error')}")
+        logger.error(f"Error saving company profile: {result.get('error')}")
 
     return {"ens_id": ens_id, "module": "COPR", "status": "completed"}

@@ -1,9 +1,9 @@
 import asyncio
-
+from app.schemas.logger import logger
 
 async def orbis_match(data, session):
-    print("Performing Orbis Match...")
+    logger.warning("Performing Orbis Match...")
     await asyncio.sleep(2)  # Simulate async work
-    print("Completed Orbis Match... Completed")
+    logger.warning("Completed Orbis Match... Completed")
 
     return {"module": " Orbis Match", "status": "completed"}

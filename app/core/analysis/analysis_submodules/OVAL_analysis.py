@@ -2,7 +2,7 @@ import asyncio
 from app.core.utils.db_utils import *
 import json
 import ast
-
+from app.schemas.logger import logger
 
 import json
 
@@ -10,7 +10,7 @@ async def ownership_analysis(data, session):
 
     module_activation = False
 
-    print("Performing Ownership Structure Analysis... Started")
+    logger.warning("Performing Ownership Structure Analysis... Started")
 
     kpi_area_module = "OWN"
 
@@ -48,7 +48,7 @@ async def ownership_analysis(data, session):
 
         # Check if all/any mandatory required data is None
         if all(var is None for var in [shareholders, controlling_shareholders]):
-            print(f"{kpi_area_module} Analysis... Completed With No Data")
+            logger.info(f"{kpi_area_module} Analysis... Completed With No Data")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "no_data"}
 
         def is_valid_ownership(value):
@@ -89,19 +89,19 @@ async def ownership_analysis(data, session):
         insert_status = await upsert_kpi("oval", own_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
-            print(insert_status)
+            logger.error(insert_status)
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": "database_saving_error"}
 
     except Exception as e:
-        print(f"Error in module: {kpi_area_module}, {str(e)}")
+        logger.error(f"Error in module: {kpi_area_module}, {str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}
 
 
 async def ownership_flag(data, session):
-    print("Performing Ownership Structure Analysis... Started")
+    logger.warning("Performing Ownership Structure Analysis... Started")
 
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
@@ -161,7 +161,7 @@ async def ownership_flag(data, session):
         if all(var is None for var in
                [shareholders, beneficial_owners, global_ultimate_owner, other_ultimate_beneficiary,
                 ultimately_owned_subsidiaries]):
-            print(f"ownership_flag Analysis... Completed With No Data")
+            logger.info("ownership_flag Analysis... Completed With No Data")
             return {"ens_id": ens_id_value, "module": "OVAL", "status": "completed", "info": "no_data"}
 
         # ---- PERFORM ANALYSIS LOGIC HERE
@@ -375,7 +375,7 @@ async def ownership_flag(data, session):
             total_san_count = len(sanctions_watchlist_findings)
             SAN3A["kpi_flag"] = True
             SAN3A["kpi_rating"] = "High"
-            SAN3A["kpi_details"] = "Sanctions or watchlist exposure identified among following members of the corporate group:\n" +"\n \n".join(sanctions_watchlist_details) + ("\n...& "+str(total_san_count-5)+" more findings" if total_san_count > 6 else "") + "\n \n" + "Source: EY Network Alliance Databases"
+            SAN3A["kpi_details"] = "Sanctions or watchlist exposure identified among following members of the corporate group:\n" +"\n \n".join(sanctions_watchlist_details) + ("\n...& "+str(total_san_count-5)+" more findings" if total_san_count > 6 else "")
             kpi_dict = {
                 "count": total_san_count if total_san_count < 6 else "5 or more",
                 "findings": sanctions_watchlist_findings
@@ -386,15 +386,15 @@ async def ownership_flag(data, session):
             insert_status = await upsert_kpi("sape", san_kpis, ens_id_value, session_id_value, session)
 
             if insert_status["status"] == "success":
-                print(f"SAN3A Analysis... Completed Successfully")
+                logger.warning("SAN3A Analysis... Completed Successfully")
             else:
-                print(insert_status)
+                logger.error(insert_status)
 
         if pep_kpi_flag:
             total_pep_count = len(pep_findings)
             PEP3A["kpi_flag"] = True
             PEP3A["kpi_rating"] = "High"
-            PEP3A["kpi_details"] = "PEP exposure identified among following members of the corporate group:\n"+"\n \n".join(pep_details) + ("\n...& "+str(total_pep_count-5)+" more findings" if total_pep_count > 5 else "") + "\n \n" + "Source: EY Network Alliance Databases"
+            PEP3A["kpi_details"] = "PEP exposure identified among following members of the corporate group:\n"+"\n \n".join(pep_details) + ("\n...& "+str(total_pep_count-5)+" more findings" if total_pep_count > 5 else "")
             kpi_dict = {
                 "count": total_pep_count if total_pep_count < 6 else "5 or more",
                 "findings": pep_findings
@@ -405,15 +405,15 @@ async def ownership_flag(data, session):
             insert_status = await upsert_kpi("sown", pep_kpis, ens_id_value, session_id_value, session)
 
             if insert_status["status"] == "success":
-                print(f"PEP3A Analysis... Completed Successfully")
+                logger.warning(f"PEP3A Analysis... Completed Successfully")
             else:
-                print(insert_status)
+                logger.error(insert_status)
 
         if media_kpi_flag:
             total_med_count = len(media_findings)
             AMR2A["kpi_flag"] = True
             AMR2A["kpi_rating"] = "High"
-            AMR2A["kpi_details"] = "Possible Negative Media exposure identified among following members of the corporate group:\n"+"\n \n".join(media_details) + ("\n...& "+str(total_med_count-5)+" more findings" if total_med_count > 5 else "")+ "\n \n" + " Source: EY Network Alliance Databases"
+            AMR2A["kpi_details"] = "Possible Negative Media exposure identified among following members of the corporate group:\n"+"\n \n".join(media_details) + ("\n...& "+str(total_med_count-5)+" more findings" if total_med_count > 5 else "")
             kpi_dict = {
                 "count": total_med_count if total_med_count < 6 else "5 or more",
                 "findings": media_findings
@@ -424,13 +424,13 @@ async def ownership_flag(data, session):
             insert_status = await upsert_kpi("rfct", amr_kpis, ens_id_value, session_id_value, session)
 
             if insert_status["status"] == "success":
-                print(f"AMR2A Analysis... Completed Successfully")
+                logger.warning(f"AMR2A Analysis... Completed Successfully")
             else:
-                print(insert_status)
+                logger.error(insert_status)
 
 
         return {"ens_id": ens_id_value, "module": "OVAL EXTRA", "status": "completed","info": "analysed"}
 
     except Exception as e:
-        print(f"Error in module: OVAL EXTRA, {str(e)}")
+        logger.error(f"Error in module: OVAL EXTRA, {str(e)}")
         return {"ens_id": ens_id_value, "module": "OVAL EXTRA", "status": "failure", "info": str(e)}

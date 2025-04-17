@@ -6,9 +6,8 @@ from app.schemas.responses import ResponseMessage
 from app.core.analysis.analysis import *
 from app.core.utils.db_utils import *
 from app.models import *
-
 from app.core.config import get_settings
-
+from app.schemas.logger import logger
 import asyncpg
 from fastapi.responses import StreamingResponse
 from app.core.sse.streaming import *
@@ -40,10 +39,10 @@ async def get_ensid_status(
         ens_id_list = json.loads(decoded_ids)  # Decode JSON string to list
         
 
-        print("ens_id_list",ens_id_list, "\n session_id", session_id)
+        logger.debug("ens_id_list",ens_id_list, "\n session_id", session_id)
 
         conn = await asyncpg.connect(DATABASE_URL)  # single connection for duration of request ???
-        print("CONNECTION ESTABLISHED")
+        logger.info("CONNECTION ESTABLISHED")
 
         # try:
         asyncio.create_task(listen_for_ensid_notifications(conn))
@@ -73,11 +72,11 @@ async def get_ensid_status(
     try:
         # ENS ID, Session ID comes directly from Query Param
 
-        print("ens_id_list", ens_id, "\n session_id", session_id)
+        logger.debug("ens_id_list", ens_id, "\n session_id", session_id)
         ens_id_list = [ens_id]
 
         conn = await asyncpg.connect(DATABASE_URL)  # single connection for duration of request ???
-        print("CONNECTION ESTABLISHED")
+        logger.info("CONNECTION ESTABLISHED")
 
         # try:
         asyncio.create_task(listen_for_ensid_notifications(conn))
@@ -104,9 +103,9 @@ async def get_sessionid_status(
     :return:
     """
     try:
-        print("session_id", session_id)
+        logger.debug("session_id", session_id)
         conn = await asyncpg.connect(DATABASE_URL)
-        print("CONNECTION ESTABLISHED")
+        logger.info("CONNECTION ESTABLISHED")
 
         # try:
         asyncio.create_task(listen_for_session_notifications(conn))
@@ -133,11 +132,11 @@ async def get_sessionid_status_poll(
     :return:
     """
     try:
-        print("session_id", session_id)
+        logger.debug("session_id", session_id)
 
         initial_state = await get_session_screening_status_static(session_id, db_session)
 
-        print(initial_state)
+        logger.info(initial_state)
 
         return {"status": "", "data": initial_state[0], "message": ""}
 
@@ -160,12 +159,12 @@ async def get_sessionid_status_poll(
     :return:
     """
     try:
-        print("session_id", session_id)
+        logger.debug("session_id", session_id)
         ens_id_list = [ens_id]
 
         initial_state = await get_ensid_screening_status_static(ens_id_list, session_id, db_session)
 
-        print(initial_state)
+        logger.info(initial_state)
 
         return {"status": "", "data": initial_state[0], "message": ""}
 

@@ -1,12 +1,13 @@
 import json
 from datetime import datetime
 from app.core.utils.db_utils import *
+from app.schemas.logger import logger
 
 async def legal_analysis(data, session):
 
     module_activation = False
 
-    print("Performing Legal Analysis...")
+    logger.warning("Performing Legal Analysis...")
 
     kpi_area_module = "LEG"
 
@@ -50,7 +51,7 @@ async def legal_analysis(data, session):
         person_info_none = all(person.get("grid_legal", None) is None for person in person_retrieved_data)
 
         if person_info_none and (legal is None) and (grid_legal is None):
-            print(f"{kpi_area_module} Analysis... Completed With No Data")
+            logger.warning(f"{kpi_area_module} Analysis... Completed With No Data")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "no_data"}
 
         # ---------------- LEG1A - Legal Event - Organisation Level
@@ -114,13 +115,13 @@ async def legal_analysis(data, session):
         insert_status = await upsert_kpi("lgrk", legal_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure","info": "database_saving_error"}
 
     except Exception as e:
-        print(f"Error in module: {kpi_area_module}: {str(e)}")
+        logger.error(f"Error in module: {kpi_area_module}: {str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}
 
 

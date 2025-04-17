@@ -1,5 +1,6 @@
 import json
 from app.core.utils.db_utils import *
+from app.schemas.logger import logger
 
 # async def bankruptcy_and_financial_risk_analysis(data, session):
 #     """
@@ -213,7 +214,7 @@ async def financial_ratios_analysis(data, session):
     Returns:
         dict: Analysis results with KPI information
     """
-    print("Performing Financial Ratios Analysis.... Started")
+    logger.warning("Performing Financial Ratios Analysis.... Started")
 
     kpi_area_module = "BKR"
 
@@ -259,7 +260,7 @@ async def financial_ratios_analysis(data, session):
                                                     session_id_value, session)
 
         if not retrieved_data:
-            print("No external supplier data found for financial ratios analysis")
+            logger.warning("No external supplier data found for financial ratios analysis")
             return {
                 "ens_id": ens_id_value,
                 "module": kpi_area_module,
@@ -371,19 +372,19 @@ async def financial_ratios_analysis(data, session):
         insert_status = await upsert_kpi("fstb", financial_ratio_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            print(f"Financial Ratios Analysis... Completed Successfully")
+            logger.warning("Financial Ratios Analysis... Completed Successfully")
             return {
                 "ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed",
                 "kpis": financial_ratio_kpis
             }
         else:
-            print(insert_status)
+            logger.error(insert_status)
             return {
                 "ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": "database_saving_error"
             }
 
     except Exception as e:
-        print(f"Error in module: {kpi_area_module}: {str(e)}")
+        logger.error(f"Error in module: {kpi_area_module}: {str(e)}")
         return {
             "ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)
         }
@@ -399,7 +400,7 @@ async def main_financial_analysis(data, session):
     Returns:
         dict: Analysis results
     """
-    print("Running Conditional Financial Analysis")
+    logger.warning("Running Conditional Financial Analysis")
 
     try:
         financial_ratios_result = await financial_ratios_analysis(data, session)
@@ -408,7 +409,7 @@ async def main_financial_analysis(data, session):
         if (financial_ratios_result.get('kpis') and
             all(kpi.get('kpi_flag', False) == False for kpi in financial_ratios_result['kpis'] if kpi.get('kpi_area') == 'BKR')):
 
-            print("All BKR KPI flags are False or KPIs not present - Running Financial Analysis")
+            logger.info("All BKR KPI flags are False or KPIs not present - Running Financial Analysis")
             financials_result = await financials_analysis(data, session)
 
             # Retrieve updated KPIs
@@ -416,7 +417,10 @@ async def main_financial_analysis(data, session):
             session_id_value = data.get("session_id")
             required_column = ["all"]
             updated_kpis = await get_dynamic_ens_data("fstb", required_column, ens_id_value, session_id_value, session)
-            print("Financial Main completed")
+
+            logger.warning(f"Financials Analysis Result: {financials_result}")
+
+            logger.info("Financial Main completed")
             return {
                 "financial_ratios_analysis": financial_ratios_result,
                 "financials_analysis": financials_result,
@@ -425,20 +429,20 @@ async def main_financial_analysis(data, session):
 
 
         else:
-            print("Some BKR KPI flags are True - Skipping Financial Analysis")
+            logger.warning("Some BKR KPI flags are True - Skipping Financial Analysis")
             return {
                 "financial_ratios_analysis": financial_ratios_result,
                 "message": "Skipping financials due to BKR KPIs having True flags"
             }
 
     except Exception as e:
-        print(f"[ERROR] Error in main financial analysis: {str(e)}")
+        logger.error(f"[ERROR] Error in main financial analysis: {str(e)}")
         return {
             "status": "failure", "error": str(e)
         }
 
 async def financials_analysis(data, session):
-    print("Performing FINANCIALS Analysis... Started")
+    logger.warning("Performing FINANCIALS Analysis... Started")
 
     kpi_area_module = "FIN"
     ens_id_value = data.get("ens_id")
@@ -463,6 +467,8 @@ async def financials_analysis(data, session):
                     return f"{value / 1_000_000_000:.0f}B"
                 elif value >= 1_000_000:
                     return f"{value / 1_000_000:.0f}M"
+                else:
+                    return f"{value:,.0f}"
             except:
                 return value_str
 
@@ -475,10 +481,9 @@ async def financials_analysis(data, session):
         retrieved_data = await get_dynamic_ens_data("external_supplier_data", required_columns, ens_id_value,
                                                     session_id_value, session)
         retrieved_data = retrieved_data[0]
-
         # Check if all required data is None
         if all(retrieved_data.get(col) is None for col in required_columns):
-            print(f"{kpi_area_module} Analysis... Completed With No Data")
+            logger.info(f"{kpi_area_module} Analysis... Completed With No Data")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "no_data"}
 
         fin_kpis = []
@@ -490,30 +495,38 @@ async def financials_analysis(data, session):
                 kpi_entry = kpi_template.copy()
                 kpi_entry["kpi_code"] = f"FIN{idx}A"
                 kpi_entry["kpi_rating"] = "INFO"
-                kpi_entry["kpi_definition"] = f"{col.replace('_', ' ').title()} Last 4 Years (USD, th)"
+                kpi_entry["kpi_definition"] = f"{col.replace('_', ' ').title()} - Recent Years (USD)"
                 kpi_entry["kpi_value"] = json.dumps(metric_data)
 
-                details = "".join(f"[{val['closing_date']}]: {round(val['value'], 2)}\n" for val in metric_data)
+                formatted_metric_data = []
+                for val in metric_data:
+                    formatted_value = format_num(val.get("value"))
+                    formatted_metric_data.append({
+                        "closing_date": val.get("closing_date"),
+                        "value": formatted_value
+                    })
+
+                kpi_entry["kpi_value"] = json.dumps(formatted_metric_data)
+                details = "".join(f"[{val['closing_date']}]: {val['value']}\n" for val in formatted_metric_data)
                 kpi_entry["kpi_details"] = details
 
                 fin_kpis.append(kpi_entry)
-
         # Insert KPI data into database
         insert_status = await upsert_kpi("fstb", fin_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
-            print(insert_status)
+            logger.error(insert_status)
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": "database_saving_error"}
 
     except Exception as e:
-        print(f"Error in module: {kpi_area_module}: {str(e)}")
+        logger.error(f"Error in module: {kpi_area_module}: {str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}
 
 async def default_events_analysis(data, session):
-    print("Performing DEFAULT EVENTS Analysis... Started")
+    logger.warning("Performing DEFAULT EVENTS Analysis... Started")
 
     kpi_area_module = "BKR"
     ens_id_value = data.get("ens_id")
@@ -536,13 +549,13 @@ async def default_events_analysis(data, session):
 
         default_events = retrieved_data.get("default_events")
         if not default_events:
-            print(f"{kpi_area_module} Analysis... Completed With No Data")
+            logger.warning(f"{kpi_area_module} Analysis... Completed With No Data")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "no_data"}
 
         relevant_events = [event for event in default_events if "Default" in event.get("LEGAL_EVENTS_TYPES_VALUE", [])][:5]
 
         if not relevant_events:
-            print(f"{kpi_area_module} Analysis... Completed With No Relevant Data")
+            logger.warning(f"{kpi_area_module} Analysis... Completed With No Relevant Data")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "no_relevant_data"}
 
         kpi_entry = kpi_template.copy()
@@ -555,17 +568,17 @@ async def default_events_analysis(data, session):
             for event in relevant_events
         )
         kpi_entry["kpi_details"] = details
-        print([kpi_entry])
+        logger.info([kpi_entry])
 
         insert_status = await upsert_kpi("fstb", [kpi_entry], ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
-            print(insert_status)
+            logger.error(insert_status)
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": "database_saving_error"}
 
     except Exception as e:
-        print(f"Error in module: {kpi_area_module}: {str(e)}")
+        logger.error(f"Error in module: {kpi_area_module}: {str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}

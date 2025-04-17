@@ -2,10 +2,10 @@ import datetime
 import asyncio
 from app.core.utils.db_utils import *
 import json
-
+from app.schemas.logger import logger
 
 async def sanctions_analysis(data, session):
-    print("Performing Sanctions Analysis...")
+    logger.warning("Performing Sanctions Analysis...")
 
     kpi_area_module = "SAN"
 
@@ -91,6 +91,10 @@ async def sanctions_analysis(data, session):
                     sanction_time_period = 999  # Workaround temp
                     date_string = ""
 
+                if date == "Unavailable Date":
+                    risk_rating_trigger_direct = True
+                    risk_rating_trigger_indirect = True
+
                 event_category = record.get("eventCategory", None) # orbis grid version
                 event_subcategory = record.get("eventSubCategory", None)  # orbis grid version
                 event_categoryDesc = record.get("eventCategoryDesc", None)  # orbis grid version
@@ -164,7 +168,7 @@ async def sanctions_analysis(data, session):
 
             san_kpis.append(SAN2A)
 
-        print("# ------------------------------------------------------------ # PERSONS")
+        logger.info("# ------------------------------------------------------------ # PERSONS")
         # ---------------------- SAN1B, 2B: Direct and Indirect for PERSON Level from table "grid_management"
         all_person_san_events = []
         if not person_info_none and len(person_retrieved_data) > 0:
@@ -190,6 +194,10 @@ async def sanctions_analysis(data, session):
                     date = "Unavailable Date"
                     sanction_time_period = 999  # Workaround temp
                     date_string = ""
+
+                if date == "Unavailable Date":
+                    risk_rating_trigger_direct = True
+                    risk_rating_trigger_indirect = True
 
                 event_category = record.get("eventCategory", None)
                 event_subcategory = record.get("eventSubCategory", None)
@@ -265,18 +273,18 @@ async def sanctions_analysis(data, session):
             san_kpis.append(SAN2B)
         # ---------------------------------
 
-        print(f"FOUND {len(san_kpis)} KPIS IN TOTAL -------------------")
+        logger.info(f"FOUND {len(san_kpis)} KPIS IN TOTAL -------------------")
         # Insert results into the database
         insert_status = await upsert_kpi("sape", san_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure","info": "database_saving_error"}
 
     except Exception as e:
-        print(f"Error in module: {kpi_area_module}: {str(e)}")
+        logger.error(f"Error in module: {kpi_area_module}: {str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}
 
 

@@ -3,6 +3,7 @@ import json
 from app.core.security.jwt import create_jwt_token
 from app.core.utils.db_utils import *
 from app.core.config import get_settings
+from app.schemas.logger import logger
 # GRID GRID - BUT SEARCHING BY BVD ID / CONTACT ID (CONTACT ID DOESNT WORK)
 
 async def gridbyid_person(data, session): # THIS DOESNT WORK IN GRID GRID - DONT USE
@@ -26,13 +27,13 @@ async def gridbyid_person(data, session): # THIS DOESNT WORK IN GRID GRID - DONT
         response = requests.request("GET", url, headers=headers, data=data)
 
         # Print the response text
-        print(response.text)
+        logger.info(response.text)
 
-    print("Performing Orbis ID Retrieval... Completed")
+    logger.warning("Performing Orbis ID Retrieval... Completed")
 
 async def gridbyid_organisation(data, session): #TODO
 
-    print("Retrieving GRID by Company BVD ID Analysis")
+    logger.warning("Retrieving GRID by Company BVD ID Analysis")
 
     ens_id = data["ens_id"]
     session_id = data["session_id"]
@@ -41,7 +42,7 @@ async def gridbyid_organisation(data, session): #TODO
         # Generate JWT token
         jwt_token = create_jwt_token("orchestration", "analysis")
     except Exception as e:
-        print("Error generating JWT token:", e)
+        logger.error(f"Error generating JWT token: {e}")
         raise
     orbis_url = get_settings().urls.orbis_engine
     url = f"{orbis_url}/api/v1/orbis/grid/id/companies?sessionId={session_id}&ensId={ens_id}&bvdId={bvd_id}"
@@ -50,29 +51,24 @@ async def gridbyid_organisation(data, session): #TODO
         "Authorization": f"Bearer {jwt_token.access_token}"
     }
     data = {}
+    try:
+        response = requests.request("GET", url, headers=headers, data=data)
+        if response.status_code != 200:
+            return {"module": "Orbis Grid Search", "status": "failed", "success": False, "data": False, "adv_count": 0}
+        response_json = response.json()
+        adv_count = response_json.get("adv_count", 0)
+        success = response_json.get("success", False)
+        data = False
+        if success == True:
+            data = response_json.get("data", False)
+            if data == '':
+                data = False
+            elif data != False:
+                data = True
+            else:
+                data = False
 
-    response = requests.request("GET", url, headers=headers, data=data)
-    response_json = response.json()
-    adv_count = response_json.get("adv_count", 0)
-    success = response_json.get("success", False)
-    data = False
-    if success == True:
-        data = response_json.get("data", False)
-        if data == '':
-            data = False
-        elif data != False:
-            data = True
-        else:
-            data = False
-
-    # Print the response text
-    # print(response.text)
-
-    # {
-    #     "success": true,
-    #     "message": "No event for the particular entity",
-    # }
-
-    print("Performing Orbis GRID for Company ... Completed")
-
-    return {"module": "Orbis Grid Search", "status": "completed", "success": success, "data": data, "adv_count": adv_count}
+        logger.warning("Performing Orbis GRID for Company ... Completed")
+        return {"module": "Orbis Grid Search", "status": "completed", "success": success, "data": data, "adv_count": adv_count}
+    except:
+        return {"module": "data_orbis_company", "status": "failed"}

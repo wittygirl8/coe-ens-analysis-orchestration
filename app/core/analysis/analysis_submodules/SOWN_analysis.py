@@ -2,10 +2,10 @@ import asyncio
 from app.core.utils.db_utils import *
 import json
 import datetime
-
+from app.schemas.logger import logger
 async def sown_analysis(data, session):
 
-    print("Performing State Ownership Structure Analysis... Started")
+    logger.warning("Performing State Ownership Structure Analysis... Started")
 
     kpi_area_module = "SCO"
 
@@ -32,6 +32,7 @@ async def sown_analysis(data, session):
         required_columns = ["shareholders", "global_ultimate_owner", "global_ultimate_owner_type"]
         retrieved_data = await get_dynamic_ens_data("external_supplier_data", required_columns, ens_id_value, session_id_value, session)
         retrieved_data = retrieved_data[0]
+        logger.warning(f"retrieved data: {retrieved_data}")
 
         shareholders = retrieved_data.get("shareholders", None)
         global_ultimate_owner = retrieved_data.get("global_ultimate_owner", None)
@@ -53,19 +54,19 @@ async def sown_analysis(data, session):
         insert_status = await upsert_kpi("sown", sco_kpis, ens_id_value, session_id_value, session) # --- SHOULD WE CHANGE THIS TO BE PART OF PEP
 
         if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
-            print(insert_status)
+            logger.error(insert_status)
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure","info": "database_saving_error"}
 
     except Exception as e:
-        print(f"Error in module: {kpi_area_module}: {str(e)}")
+        logger.error(f"Error in module: {kpi_area_module}: {str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}
 
 async def pep_analysis(data, session):
 
-    print("Performing PEP Analysis...")
+    logger.warning("Performing PEP Analysis...")
 
     kpi_area_module = "PEP"
 
@@ -151,7 +152,8 @@ async def pep_analysis(data, session):
                 except:
                     date = "Unavailable Date"
                     # When date not available, The KPI Rating is high
-                    risk_rating_trigger_direct=True
+                    risk_rating_trigger_direct = True
+                    risk_rating_trigger_indirect = True
                     time_period = 999  # Workaround temp
                     date_string = ""
 
@@ -173,14 +175,14 @@ async def pep_analysis(data, session):
                 }
                 if event_category in indirect_eventCategory:
                     PEP2A["kpi_flag"] = True
-                    details_indirect += f"\n{i+1}.{date_string}{pep_entity_name}: {pep_details}"
+                    details_indirect += f"\n{i+1}. {date_string}{pep_entity_name}: {pep_details}"
                     pep_lists_indirect.append(event_dict)
                     i+=1
                     if time_period <= 5:
                         risk_rating_trigger_indirect = True
                 else:
                     PEP1A["kpi_flag"] = True
-                    details_direct += f"\n{j+1}.{date_string}{pep_entity_name}: {pep_details}"
+                    details_direct += f"\n{j+1}. {date_string}{pep_entity_name}: {pep_details}"
                     pep_lists_direct.append(event_dict)
                     j+=1
                     if time_period <= 5:
@@ -223,7 +225,7 @@ async def pep_analysis(data, session):
 
             pep_kpis.append(PEP2A)
 
-        print("# ------------------------------------------------------------ # PERSONS")
+        logger.info("# ------------------------------------------------------------ # PERSONS")
         # ---------------------- PEP1B, 2B: Direct and Indirect for PERSON Level from table "grid_management"
         all_person_pep_events = []
         unique_pep_entity_name = set()
@@ -247,7 +249,8 @@ async def pep_analysis(data, session):
                     date_string = f"As of [{date}]: "
                 except:
                     date = "Unavailable Date"
-                    risk_rating_trigger_direct=True
+                    risk_rating_trigger_direct = True
+                    risk_rating_trigger_indirect = True
                     time_period = 999  # Workaround temp
                     date_string = ""
 
@@ -268,14 +271,14 @@ async def pep_analysis(data, session):
 
                 if event_category in indirect_eventCategory:
                     PEP2B["kpi_flag"] = True
-                    details_indirect += f"\n{i+1}.{date_string}{pep_entity_name}: {pep_details}"
+                    details_indirect += f"\n{i+1}. {date_string}{pep_entity_name}: {pep_details}"
                     pep_lists_indirect.append(event_dict)
                     i+=1
                     if time_period <= 5:
                         risk_rating_trigger_indirect = True
                 else:
                     PEP1B["kpi_flag"] = True
-                    details_direct += f"\n{j+1}.{date_string}{pep_entity_name}: {pep_details}"
+                    details_direct += f"\n{j+1}. {date_string}{pep_entity_name}: {pep_details}"
                     unique_pep_entity_name.add(pep_entity_name)
                     pep_lists_direct.append(event_dict)
                     j+=1
@@ -326,7 +329,7 @@ async def pep_analysis(data, session):
                 else:
                     if person.get("name") not in unique_pep_entity_name:
                         PEP1B["kpi_flag"] = True
-                        details_direct += f"\n{j+1}{person.get('name')}: Potential Political Exposure Findings"
+                        details_direct += f"\n{j+1}. {person.get('name')}: Potential Political Exposure Findings"
                         unique_pep_entity_name.add(person.get('name'))
                         event_dict = {
                             "eventdt": "",
@@ -353,18 +356,18 @@ async def pep_analysis(data, session):
 
         # ---------------------------------
 
-        print(f"FOUND {len(pep_kpis)} KPIS IN TOTAL -------------------")
+        logger.info(f"FOUND {len(pep_kpis)} KPIS IN TOTAL -------------------")
         # Insert results into the database
         insert_status = await upsert_kpi("sown", pep_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure","info": "database_saving_error"}
 
     except Exception as e:
-        print(f"Error in module: {kpi_area_module}: {str(e)}")
+        logger.error(f"Error in module: {kpi_area_module}: {str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}
 
 def truncate_string(input_string, word_limit=40):

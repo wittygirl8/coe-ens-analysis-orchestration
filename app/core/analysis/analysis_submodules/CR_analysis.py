@@ -2,13 +2,13 @@ import asyncio
 from app.core.utils.db_utils import *
 import json
 import datetime
-
+from app.schemas.logger import logger
 
 async def country_risk_analysis(data, session):
 
     module_activation = False
 
-    print("Performing Country Risk Analysis... Started")
+    logger.warning("Performing Country Risk Analysis... Started")
 
     kpi_area_module = "CR"
 
@@ -89,12 +89,12 @@ async def country_risk_analysis(data, session):
         insert_status = await upsert_kpi("sown",cr_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
-            print(insert_status)
+            logger.error(insert_status)
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure","info": "database_saving_error"}
 
     except Exception as e:
-        print(f"Error in module: {kpi_area_module}: {str(e)}")
+        logger.error(f"Error in module: {kpi_area_module}: {str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}

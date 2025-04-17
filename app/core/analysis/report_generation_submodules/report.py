@@ -29,6 +29,7 @@ from .summarization import adverse_media_summary
 from .summarization import additional_indicators_summary
 from .summarization import legal_regulatory_summary
 from .summarization import overall_summary
+from app.schemas.logger import logger
 # import nltk
 # nltk.download('punkt')  # Download required dataset
 # from nltk.tokenize import sent_tokenize
@@ -99,14 +100,14 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
 
     try:
 
-        logging.info(f"====== Begin: Reports for supplier. Saving locally: {session_outputs} ======")
+        logger.info(f"====== Begin: Reports for supplier. Saving locally: {session_outputs} ======")
         count = 0
         results = {}
 
         # Make sure the table that is referenced here has unique supplier records #TODO WHAT IS THIS FOR
         required_columns = ["name", "country"]
         supplier_data = await get_dynamic_ens_data("supplier_master_data", required_columns=required_columns, ens_id=incoming_ens_id, session_id=session_id, session=session)
-        print("\n\nSupplier data >>>> \n\n", supplier_data)
+        logger.info("\n\nSupplier data >>>> \n\n %s", supplier_data)
 
         process_details = {
             "ens_id": incoming_ens_id,
@@ -135,7 +136,7 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
             }
         }
 
-        logging.info(f"--> Generating reports for ID: {incoming_ens_id}")
+        logger.info(f"--> Generating reports for ID: {incoming_ens_id}")
 
         # Format the date
         current_date = datetime.now()
@@ -157,7 +158,7 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
         sco = await state_ownership_summary(data, session)
         financials = await financials_summary(data, session)
         adverse_media = await adverse_media_summary(data, session)
-        additional_indicators = await additional_indicators_summary(data, session),
+        additional_indicators = await additional_indicators_summary(data, session)
         regal = await legal_regulatory_summary(data, session)
         summary = await overall_summary(data, session, supplier_name=incoming_name)
         static_entries = {
@@ -174,7 +175,6 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
         }
 
         context.update(static_entries)
-
 
         # Get ratings for all sections
         ratings_data = await get_dynamic_ens_data(
@@ -226,7 +226,7 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
 
         # Profile Data
         profile_data = await populate_profile(incoming_ens_id=incoming_ens_id, incoming_session_id=session_id, session=session)
-        print(f"profile type {type(profile_data)}")
+        logger.info("profile type %s", type(profile_data))
         # print("profile_data", profile_data)
         # print("Company Name:", profile_data["name"])
 
@@ -358,7 +358,7 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
 ############################################################################################################################
 
         try:
-            print("country started")
+            logger.info("country started")
             # Country Risk DataFrame
             country_risk_data = await populate_country_risk(incoming_ens_id=incoming_ens_id,
                                                       incoming_session_id=session_id, session=session)
@@ -371,7 +371,7 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
             else:
                 context["country_risk_findings"] = False
             process_details["populate_sections"]["country_risk"] = "success"
-            print("Country Risk Data:\n", country_risk_df)
+            logger.info("Country Risk Data:\n %s", country_risk_df)
         except Exception as e:
             tb = traceback.format_exc()
             process_details["populate_sections"]["country_risk"] = str(tb)
@@ -380,7 +380,7 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
 
         try:
             # Ownership flag DataFrame
-            print("flag started")
+            logger.info("flag started")
             ownership_flag_data = await populate_ownership_flag(incoming_ens_id=incoming_ens_id,
                                                             incoming_session_id=session_id, session=session)
             ownership_flag_df = ownership_flag_data["ownership_flag"]
@@ -557,14 +557,14 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
         # Ensure the output folder exists
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
-            logging.info(f"Created output folder at: {output_folder}")
+            logger.info(f"Created output folder at: {output_folder}")
         else:
             # Clear the folder by removing all files inside it
             for file in os.listdir(output_folder):
                 file_path = os.path.join(output_folder, file)
                 if os.path.isfile(file_path):
                     os.remove(file_path)
-            logging.info(f"Output folder cleared: Awaiting new files...")
+            logger.info(f"Output folder cleared: Awaiting new files...")
 
         docx_path = os.path.join(output_folder, docx_file_local)
         pdf_path = os.path.join(output_folder, pdf_file_local)
@@ -572,11 +572,11 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
         # Save locally if requested
         if session_outputs:
             # Save DOCX file to output folder
-            logging.info(f"Saving {docx_path} locally...")
+            logger.info(f"Saving {docx_path} locally...")
             try:
                 with open(docx_path, "wb") as f:
                     f.write(docx_buffer.getvalue())
-                logging.info(f"Saved DOCX report at {docx_path}")
+                logger.info(f"Saved DOCX report at {docx_path}")
                 process_details["local"]["docx"] = "success"
             except Exception as e:
                 process_details["local"]["docx"] = "failed"
@@ -586,7 +586,7 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
             try:
                 docx_path_for_pdf = os.path.join(output_folder, docx_file_local)
                 convert(docx_path_for_pdf, pdf_path)
-                logging.info(f"Saved PDF report at {pdf_path}")
+                logger.info(f"Saved PDF report at {pdf_path}")
                 process_details["local"]["pdf"] = "success"
             except Exception as e:
                 process_details["local"]["pdf"] = "failed"
@@ -616,7 +616,7 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
 
         count += 1
 
-        logging.info(f"====== End: Generated reports for supplier ======")
+        logger.info(f"====== End: Generated reports for supplier ======")
 
         output = {
             "status": "success" if process_details["blob"]["docx"] == "True" or process_details["local"]["docx"] == "True" else "failure",
@@ -637,7 +637,7 @@ async def report_generation(data, session, upload_to_blob:bool, session_outputs:
             "traceback": tb  # Add detailed traceback info
         }
 
-        logging.error(f"Process details: {process_details}")  # Use logging.error for exceptions
+        logger.error(f"Process details: {process_details}")  # Use logger.error for exceptions
 
         return False, process_details
     
@@ -659,7 +659,7 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
 
     try:
 
-        logging.info(f"====== Begin: Reports for supplier. Saving locally: {save_locally} ======")
+        logger.info(f"====== Begin: Reports for supplier. Saving locally: {save_locally} ======")
         count = 0
         results = {}
 
@@ -667,7 +667,7 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
         required_columns = ["name", "country"]
         supplier_data = await get_dynamic_ens_data("upload_supplier_master_data", required_columns=required_columns,
                                                    ens_id=incoming_ens_id, session_id=session_id, session=session)
-        print("\n\nSupplier data >>>> \n\n", supplier_data)
+        logger.info("\n\nSupplier data >>>> \n\n %s", supplier_data)
 
         process_details = {
             "ens_id": incoming_ens_id,
@@ -696,7 +696,7 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
             }
         }
 
-        logging.info(f"--> Generating reports for ID: {incoming_ens_id}")
+        logger.info(f"--> Generating reports for ID: {incoming_ens_id}")
 
         # Format the date
         current_date = datetime.now()
@@ -777,10 +777,10 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
                         context["corporate_ownership"] = row.get("kpi_rating")
                     elif row.get("kpi_code") == "additional indicator" and row.get("kpi_area") == "theme_rating":
                         context["additional_indicators_rating"] = row.get("kpi_rating")
-                        print("additional",context["additional_indicators_rating"])
+                        logger.info("additional %s", context["additional_indicators_rating"])
                     elif row.get("kpi_code") == "web" and row.get("kpi_area") == "theme_rating":
                         context["web_rating"] = row.get("kpi_rating")
-                        print("web",context["web_rating"])
+                        logger.info("web %s", context["web_rating"])
         else:
             no_ratings = {
                 "sanctions_rating": "None",
@@ -1110,45 +1110,58 @@ async def report_generation_poc(data, session, upload_to_blob: bool, save_locall
         context["disable-regulator-and-legal"] = True
         #Call orbis engine endpoint
         # print("context", context)
-        print("Retrieving Orbis - Report Generation..")
+        logger.warning("Retrieving Orbis - Report Generation..")
         # with open(f"123_{context.get("name")}.json", 'w')as file:
         #     json.dump(context,file,indent=2)
         try:
             # Generate JWT token
             jwt_token = create_jwt_token("orchestration", "analysis")
         except Exception as e:
-            print("Error generating JWT token:", e)
+            logger.error(f"Error generating JWT token: {e}")
             raise
         orbis_url = get_settings().urls.orbis_engine
-        print("url", orbis_url)
+        logger.info("url %s", orbis_url)
         url = f"{orbis_url}/api/v1/internal/report-generation-node"
         # Prepare headers with the JWT token
         headers = {
             "Authorization": f"Bearer {jwt_token.access_token}"
         }
-        response = requests.post(url, headers=headers, json=context)
-        print("response of report",response.status_code)
-        if response.status_code == 200:
-            process_details["blob"]["pdf"] = "success"
-            process_details["blob"]["docx"] = "success"
-        else:
-            process_details["blob"]["pdf"] = "failed"
-            process_details["blob"]["docx"] = "failed"
+        try:
+            logger.info("in try")
+            response = requests.post(url, headers=headers, json=context)
+            logger.info("response of report %s", response.status_code)
+            if response.status_code == 200:
+                process_details["blob"]["pdf"] = "success"
+                process_details["blob"]["docx"] = "success"
+            else:
+                process_details["blob"]["pdf"] = "failed"
+                process_details["blob"]["docx"] = "failed"
+            return process_details, response.status_code
+        except:
+            logger.info("in inner except")
+            tb = traceback.format_exc()  # Capture the full traceback
 
+            process_details = {
+                "ens_id": incoming_ens_id,
+                "supplier_name": incoming_name,
+                "L2_supplier_name_validation": "",
+                "error": f"ReportGenerationCode - {str(e)}"
+            }
 
-        return process_details, response.status_code
+            logger.error(f"Process details: {process_details}")  # Use logger.error for exceptions
 
+            return process_details, 500
     except Exception as e:
+        logger.info("in outer except")
         tb = traceback.format_exc()  # Capture the full traceback
 
         process_details = {
             "ens_id": incoming_ens_id,
             "supplier_name": incoming_name,
             "L2_supplier_name_validation": "",
-            "error": f"ReportGenerationCode - {str(e)}",
-            "traceback": tb  # Add detailed traceback info
+            "error": f"ReportGenerationCode - {str(e)}" # Add detailed traceback info
         }
 
-        logging.error(f"Process details: {process_details}")  # Use logging.error for exceptions
+        logger.error(f"Process details: {process_details}")  # Use logger.error for exceptions
 
         return process_details, 500

@@ -49,34 +49,34 @@ def batch_generator(all_items_list, batch_size):
 
 
 async def run_supplier_name_validation(data, session):
-    log.info(f"<<< RUNNING SVP FOR NEW SESSION >>>")
-    log.info(f"API Data: {data} ")
+    logger.info(f"<<< RUNNING SVP FOR NEW SESSION >>>")
+    logger.info(f"API Data: {data} ")
     # 1. session initialisation run
     session_id_value = data.get("session_id")
-    log.info(f"SESSION = {session_id_value}")
+    logger.info(f"SESSION = {session_id_value}")
     # data_for_sessionId = await get_ens_ids_for_session_id("upload_supplier_master_data", session_id=session_id_value, session=session)
     data_for_sessionId = await get_dynamic_ens_data("upload_supplier_master_data", required_columns=["all"],
                                                     ens_id=None, session_id=session_id_value, session=session)
-    # log.info("Data for session ID:", data_for_sessionId)
+    # logger.info("Data for session ID:", data_for_sessionId)
 
     # Updating the Status value in session_screening_status
     validation = {"supplier_name_validation_status": STATUS.IN_PROGRESS.value}
     update_status = await update_dynamic_ens_data("session_screening_status", validation, ens_id=None,
                                                   session_id=session_id_value, session=session)
     if update_status["status"] == "success":
-        log.info("UPDATED status for session = IN_PROGRESS")
+        logger.info("UPDATED status for session = IN_PROGRESS")
     else:
-        log.info("Failed to UPDATE status for session = IN_PROGRESS, check db_util parameters")
+        logger.info("Failed to UPDATE status for session = IN_PROGRESS, check db_util parameters")
 
     # 2. Run Name Validatio Pipeline Concurrently (In Batches of N Concurrent Suppliers)
     batch_size = 2
     batch_data = batch_generator(data_for_sessionId, batch_size)
-    # log.info(f"batch data: {batch_data}")
+    # logger.info(f"batch data: {batch_data}")
     api_response = []
     count = 0
     for nameval_batch in batch_data:
         for element in nameval_batch:
-            # log.info(f"Running for ens ID: {element["ens_id"]}")
+            # logger.info(f"Running for ens ID: {element["ens_id"]}")
             nameval_tasks = [supplier_name_validation(element, session, search_engine="bing")]  # update func params
             nameval_batch_result = await asyncio.gather(*nameval_tasks)
             for runs in range(len(nameval_batch_result)):
@@ -91,14 +91,16 @@ async def run_supplier_name_validation(data, session):
                 #     temp = {"process_status":STATUS.FAILED.value}
                 #     update_status = await update_dynamic_ens_data("upload_supplier_master_data", temp, session=session, ens_id=element["ens_id"], session_id=session_id_value)
 
+    a = await ensid_duplicate_in_session(session_id_value, session)
+
     # Updating the Status value in session_screening_status
     validation = {"supplier_name_validation_status": STATUS.COMPLETED.value}
     update_status = await update_dynamic_ens_data("session_screening_status", validation, ens_id=None,
                                                   session_id=session_id_value, session=session)
     if update_status["status"] == "success":
-        log.info("UPDATED status for session = COMPLETED")
+        logger.info("UPDATED status for session = COMPLETED")
     else:
-        log.info("Failed to UPDATE status for session = COMPLETED, check db_util parameters")
+        logger.info("Failed to UPDATE status for session = COMPLETED, check db_util parameters")
 
     return {"overall_process_status": STATUS.COMPLETED.value, "supplier_data": api_response}
 
@@ -112,25 +114,25 @@ async def run_report_generation_standalone(data, session):
     :param session: db session
     :return:
     """
-    log.info(f"<<< RUNNING RGC FOR NEW SESSION - STANDALONE CALL FOR ONLY RGC>>>")
-    log.info(f"API Data: {data} ")
+    logger.info(f"<<< RUNNING RGC FOR NEW SESSION - STANDALONE CALL FOR ONLY RGC>>>")
+    logger.info(f"API Data: {data} ")
     # 1. session initialisation run
     session_id_value = data.get("session_id")
-    log.info(f"SESSION = {session_id_value}")
+    logger.info(f"SESSION = {session_id_value}")
 
     # data_for_sessionId = await get_ens_ids_for_session_id("upload_supplier_master_data", session_id=session_id_value, session=session)
     data_for_sessionId = await get_dynamic_ens_data("supplier_master_data", required_columns=["all"],
                                                     ens_id=None, session_id=session_id_value, session=session)  # TODO IDEALLY DONT PULL ALL COLS?
-    print("\n\nData for session ID", data_for_sessionId)
+    logger.info("\n\nData for session ID %s", data_for_sessionId)
 
     # TODO: Confirm if a col exists for this status
     # Update the status message for report generation
     validation = {"screening_analysis_status": STATUS.IN_PROGRESS.value}
     update_status = await update_dynamic_ens_data("session_screening_status", validation, ens_id=None, session_id=session_id_value, session=session)
     if update_status["status"]=="success":
-        log.info("UPDATED status for session = IN_PROGRESS")
+        logger.info("UPDATED status for session = IN_PROGRESS")
     else:
-        log.info("Failed to UPDATE status for session = IN_PROGRESS, check db_util parameters")
+        logger.info("Failed to UPDATE status for session = IN_PROGRESS, check db_util parameters")
 
     batch_size = 3
     batch_data = batch_generator(data_for_sessionId, batch_size)
@@ -139,7 +141,7 @@ async def run_report_generation_standalone(data, session):
     count = 0
     for nameval_batch in batch_data:
         for element in nameval_batch:
-            log.info(f"\n\nRunning for ens ID: {element}")
+            logger.info(f"\n\nRunning for ens ID: {element}")
             nameval_tasks = [report_generation(element, session, ts_data=None, upload_to_blob=True, session_outputs=True)]
             nameval_batch_result = await asyncio.gather(*nameval_tasks)
             for runs in range(len(nameval_batch_result)):
@@ -158,33 +160,33 @@ async def run_report_generation_standalone(data, session):
     validation = {"screening_analysis_status": STATUS.COMPLETED.value}
     update_status = await update_dynamic_ens_data("session_screening_status", validation, ens_id=None, session_id=session_id_value, session=session)
     if update_status["status"]=="success":
-        log.info("UPDATED status for session = COMPLETED")
+        logger.info("UPDATED status for session = COMPLETED")
     else:
-        log.info("Failed to UPDATE status for session = COMPLETED, check db_util parameters")
+        logger.info("Failed to UPDATE status for session = COMPLETED, check db_util parameters")
 
     return {"overall_process_status": STATUS.COMPLETED.value, "report_data": api_response}
 
 async def run_report_generation_single(data, session):
-    log.info(f"<<< RUNNING RGC FOR NEW SESSION >>>")
-    log.info(f"API Data: {data} ")
+    logger.info(f"<<< RUNNING RGC FOR NEW SESSION >>>")
+    logger.info(f"API Data: {data} ")
     # 1. session initialisation run
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
-    log.info(f"SESSION = {session_id_value}")
+    logger.info(f"SESSION = {session_id_value}")
 
     # data_for_sessionId = await get_ens_ids_for_session_id("upload_supplier_master_data", session_id=session_id_value, session=session)
     data_for_sessionId = await get_dynamic_ens_data("supplier_master_data", required_columns=["all"],
                                                     ens_id=ens_id_value, session_id=session_id_value, session=session)
-    print("\n\nData for session ID", data_for_sessionId)
+    logger.info("\n\nData for session ID %s",data_for_sessionId)
 
     # TODO: Confirm if a col exists for this status
     # Update the status message for report generation
     validation = {"report_generation_status": STATUS.IN_PROGRESS.value}
     update_status = await update_dynamic_ens_data("session_screening_status", validation, ens_id=None, session_id=session_id_value, session=session)
     if update_status["status"]=="success":
-        log.info("UPDATED status for session = IN_PROGRESS")
+        logger.info("UPDATED status for session = IN_PROGRESS")
     else:
-        log.info("Failed to UPDATE status for session = IN_PROGRESS, check db_util parameters")
+        logger.info("Failed to UPDATE status for session = IN_PROGRESS, check db_util parameters")
 
     api_response = []
     process_status, result = await report_generation(data_for_sessionId[0], session, ts_data=None, upload_to_blob=True, session_outputs=True)
@@ -203,9 +205,9 @@ async def run_report_generation_single(data, session):
     validation = {"report_generation_status": STATUS.COMPLETED.value}
     update_status = await update_dynamic_ens_data("session_screening_status", validation, ens_id=None, session_id=session_id_value, session=session)
     if update_status["status"]=="success":
-        log.info("UPDATED status for session = COMPLETED")
+        logger.info("UPDATED status for session = COMPLETED")
     else:
-        log.info("Failed to UPDATE status for session = COMPLETED, check db_util parameters")
+        logger.info("Failed to UPDATE status for session = COMPLETED, check db_util parameters")
 
     return {"overall_process_status": STATUS.COMPLETED.value, "report_data": api_response}
 
@@ -215,11 +217,20 @@ async def run_analysis_tasks(data, session):
      Execute all analysis functions concurrently, then run report generation.
     """
 
-    print("BEGINNING ANALYSIS")
-    print(data)
+    logger.info(data)
 
     session_id = data.get("session_id")
     ens_id = data.get("ens_id")
+    bvd_id = data.get("bvd_id")
+
+    logger.info("--------------- STARTING ORBIS RETRIEVAL FOR ENS ID----------------------")
+
+    orbis_status = await run_orbis(ens_id, session_id, bvd_id, session)
+    logger.info(orbis_status)
+    # Try catch already in function, TODO: add handler Here for Returning Fail Case
+
+    logger.warning("--------------- BEGINNING ANALYSIS FOR ENS ID -----------------------------")
+
     # List of analysis functions to run concurrently
     analysis_tasks = [
         company_profile(data, SessionFactory()),
@@ -244,10 +255,6 @@ async def run_analysis_tasks(data, session):
     try:
         # Run all analysis tasks concurrently
         analysis_results = await asyncio.gather(*analysis_tasks)
-
-        # Add logic to switch news screening on/off
-        # Look for grid events, if not, take orbis news events, if not, go for 2 sents screening
-        # news_screening(data, SessionFactory()) # 2 sents
 
         ovrr_result = await ovrr(data, SessionFactory())
         # / --- UPDATE ENSID STATUS
@@ -274,23 +281,23 @@ async def run_analysis_tasks(data, session):
         json_file_name = f"{ens_id}/report.json"
         upload_to_azure_blob(report_json, json_file_name, session_id)
 
-        print("report result:",status)
+        logger.debug("report result: &s", status)
         if status == 200:
-            print("in if")
+            logger.info("in if")
             ens_ids_rows = [{"ens_id": ens_id, "report_generation_status": STATUS.COMPLETED, "overall_status": STATUS.COMPLETED}]
             insert_status = await upsert_ensid_screening_status(ens_ids_rows, session_id, SessionFactory())
-            print("status after report", insert_status)
+            logger.debug("status after report %s", insert_status)
         else:
-            print("in else")
+            logger.info("in else")
             ens_ids_rows = [{"ens_id": ens_id, "report_generation_status": STATUS.FAILED, "overall_status": STATUS.FAILED}]
             insert_status = await upsert_ensid_screening_status(ens_ids_rows, session_id, SessionFactory())
-            print("status after report", insert_status)
+            logger.debug(f"status after report %s", insert_status)
 
         return analysis_results + [report_result]  # TODO Neaten
 
     except Exception as e:
 
-        print("ERROR RUNNING:",ens_id, str(e))
+        logger.error(f"ERROR RUNNING:{ens_id}, {str(e)}")
 
         ens_ids_rows = [{"ens_id": ens_id, "report_generation_status": STATUS.FAILED, "overall_status": STATUS.FAILED}]
         insert_status = await upsert_ensid_screening_status(ens_ids_rows, session_id, SessionFactory())
@@ -315,59 +322,92 @@ async def run_orbis(ens_id, session_id, bvd_id, session):
             "bvd_id": bvd_id
         }
 
-        print(f"PERFORMING ORBIS RETRIEVAL FOR {ens_id}")
+        logger.warning("PERFORMING ORBIS RETRIEVAL FOR %s", ens_id)
+
+        ens_id_row = [{"ens_id": ens_id, "orbis_retrieval_status": STATUS.IN_PROGRESS}]
+        insert_status = await upsert_ensid_screening_status(ens_id_row, session_id, SessionFactory())
+
+
         # 1. ORBIS COMPANY - most of the main fields in external_supplier_data (FOR COMPANY LEVEL)
         company_result = await orbis_company(data, session)
+        if company_result["status"] == 'failed':
+            logger.error(f"ERROR IN ORBIS COMPANY DATA RETRIEVAL FOR {ens_id}")
+            status_ens_id = [
+                {"ens_id": ens_id, "orbis_retrieval_status": STATUS.FAILED}]  # must be list even though just 1 row
+            insert_status = await upsert_ensid_screening_status(status_ens_id, session_id, SessionFactory())
+            return {"company_result": STATUS.FAILED, "orbis_grid_result": STATUS.FAILED}
+
 
         # 2. ORBIS GRID - fields which are "event_" in external_supplier_data (FOR COMPANY LEVEL)
         orbis_grid_result = await orbis_grid_search(data, session)
-        orbis_grid_data_indicator = orbis_grid_result.get("data",False)
-        orbis_grid_success_indicator = orbis_grid_result.get("success", False)
+        if orbis_grid_result["status"] == 'failed':
+            logger.error(f"ERROR IN ORBIS GRID RETRIEVAL FOR {ens_id}")
+            status_ens_id = [
+                {"ens_id": ens_id, "orbis_retrieval_status": STATUS.FAILED}]  # must be list even though just 1 row
+            insert_status = await upsert_ensid_screening_status(status_ens_id, session_id, SessionFactory())
+            return {"company_result": STATUS.FAILED, "orbis_grid_result": STATUS.FAILED}
         orbis_grid_adv_indicator = orbis_grid_result.get("adv_count", 0)
-        print("indicators orbis grid:",orbis_grid_adv_indicator, orbis_grid_success_indicator, orbis_grid_data_indicator, orbis_grid_result)
 
         # 3A. GRID-GRID by ID <may not work> (FOR COMPANY LEVEL)
         grid_grid_result = await gridbyid_organisation(data, session)
         grid_grid_data_indicator = grid_grid_result.get("data", False)
-        grid_grid_success_indicator = grid_grid_result.get("success",False)
         grid_grid_adv_indicator = grid_grid_result.get("adv_count", 0)
-        print("indicators grid grid:", grid_grid_adv_indicator, grid_grid_success_indicator, grid_grid_data_indicator, grid_grid_result)
-
         grid_grid_msg = grid_grid_result.get("message", "")
-        # 3B. (FALLBACK) GRID-GRID by NAME (FOR COMPANY LEVEL)
-        grid_grid_id_success_indicator = True
-        grid_grid_id_data_indicator = True
+        if grid_grid_result["status"] == 'failed':
+            logger.error(f"ERROR IN GRID BY ID RETRIEVAL FOR {ens_id}")
+            status_ens_id = [
+                {"ens_id": ens_id, "orbis_retrieval_status": STATUS.FAILED}]  # must be list even though just 1 row
+            insert_status = await upsert_ensid_screening_status(status_ens_id, session_id, SessionFactory())
+            return {"company_result": STATUS.FAILED, "orbis_grid_result": STATUS.FAILED}
+
         grid_grid_id_adv_indicator = 0
-        if grid_grid_msg == "No event for the particular entity" or not grid_grid_success_indicator:
-            print("No Initial GRID")
+        if grid_grid_msg == "No event for the particular entity" or not grid_grid_data_indicator:
+            logger.info("No Initial GRID")
             grid_grid_id_result = await gridbyname_organisation(data, session)
-            grid_grid_id_data_indicator = grid_grid_id_result.get("data", False)
-            grid_grid_id_success_indicator = grid_grid_id_result.get("success", False)
             grid_grid_id_adv_indicator = grid_grid_id_result.get("adv_count", 0)
-            print("indicators grid grid id:",grid_grid_id_adv_indicator, grid_grid_id_success_indicator, grid_grid_id_data_indicator, grid_grid_id_result)
+            if grid_grid_id_result["status"] == 'failed':
+                logger.error(f"ERROR IN GRID BY NAME RETRIEVAL FOR {ens_id}")
+                status_ens_id = [
+                    {"ens_id": ens_id, "orbis_retrieval_status": STATUS.FAILED}]  # must be list even though just 1 row
+                insert_status = await upsert_ensid_screening_status(status_ens_id, session_id, SessionFactory())
+                return {"company_result": STATUS.FAILED, "orbis_grid_result": STATUS.FAILED}
         # 3C. (FALLBACK) ORBIS NEWS
-            print(f"total:{int(orbis_grid_adv_indicator)}, {int(grid_grid_adv_indicator)}, {int(grid_grid_id_adv_indicator)}", int(orbis_grid_adv_indicator) + int(grid_grid_adv_indicator) + int(grid_grid_id_adv_indicator))
+            logger.info("total: %d %d %d total sum: %d", int(orbis_grid_adv_indicator), int(grid_grid_adv_indicator), int(grid_grid_id_adv_indicator), int(orbis_grid_adv_indicator) + int(grid_grid_adv_indicator) + int(grid_grid_id_adv_indicator))
         if int(orbis_grid_adv_indicator) + int(grid_grid_adv_indicator) + int(grid_grid_id_adv_indicator) == 0:
             try:
-                print("Running: other news findings")
+                logger.warning("Running: other news findings")
                 orbis_news_result = await orbis_news_search(data,session)
                 orbis_news_data_indicator = orbis_news_result.get("data", False)
-                orbis_news_success_indicator = orbis_news_result.get("success", False)
-                if orbis_news_success_indicator == False or orbis_news_data_indicator == False:
-                    print("Running: two cents")
+                if orbis_news_result["status"] == 'failed':
+                    logger.error(f"ERROR IN ORBIS NEWS RETRIEVAL FOR {ens_id}")
+                    status_ens_id = [
+                        {"ens_id": ens_id,
+                         "orbis_retrieval_status": STATUS.FAILED}]  # must be list even though just 1 row
+                    insert_status = await upsert_ensid_screening_status(status_ens_id, session_id, SessionFactory())
+                    return {"company_result": STATUS.FAILED, "orbis_grid_result": STATUS.FAILED}
+                if orbis_news_data_indicator == False:
+                    logger.warning("Running: two cents")
                     two_cents_result=await newsscreening_main_company(data, session)
+
                 else:
-                    print("2 cents skipped")
+                    logger.info("2 cents skipped")
             except Exception as e:
-                print("ERROR RUNNING 2 SENTS -------------", str(e))
+                logger.error(f"ERROR RUNNING 2 SENTS ------------- {str(e)}")
         else:
-            print(f"total:{int(orbis_grid_adv_indicator)}, {int(grid_grid_adv_indicator)}, {int(grid_grid_id_adv_indicator)}", int(orbis_grid_adv_indicator) + int(grid_grid_adv_indicator) + int(grid_grid_id_adv_indicator))
-            print("Skipping: other news findings")
+            logger.info("total: %d %d %d total sum: %d", int(orbis_grid_adv_indicator), int(grid_grid_adv_indicator), int(grid_grid_id_adv_indicator), int(orbis_grid_adv_indicator) + int(grid_grid_adv_indicator) + int(grid_grid_id_adv_indicator))
+            logger.info("Skipping: other news findings")
 
         # orbis_news_result = await orbis_news_search(data, session)
         # 4. (FALLBACK) GRID-GRID by NAME (FOR PERSON LEVEL)
         grid_grid_result_person = await gridbyname_person(data, session)
-        print(grid_grid_result_person.get("success",""))
+        if grid_grid_result_person["status"] == 'failed':
+            logger.error(f"ERROR IN GRID PERSONNEL RETRIEVAL FOR {ens_id}")
+            status_ens_id = [
+                {"ens_id": ens_id,
+                 "orbis_retrieval_status": STATUS.FAILED}]  # must be list even though just 1 row
+            insert_status = await upsert_ensid_screening_status(status_ens_id, session_id, SessionFactory())
+            return {"company_result": STATUS.FAILED, "orbis_grid_result": STATUS.FAILED}
+
 
         # Check combined result
         # orbis_result = {"company_result": company_result["status"], "orbis_grid_result": orbis_grid_result["status"]} #update more here if needed
@@ -380,7 +420,7 @@ async def run_orbis(ens_id, session_id, bvd_id, session):
 
     except Exception as e:
 
-        print(f"ERROR IN ORBIS RETRIEVAL FOR {ens_id}: {str(e)}")
+        logger.error(f"ERROR IN ORBIS RETRIEVAL FOR {ens_id}: {str(e)}")
 
         # / --- UPDATE ENSID STATUS
         status_ens_id = [{"ens_id": ens_id, "orbis_retrieval_status": STATUS.FAILED}] #must be list even though just 1 row
@@ -394,7 +434,7 @@ async def run_analysis(data, session):
 
     session_id_value = data.get("session_id")
 
-    print(f"STARTING ANALYSIS FOR SESSION ID: {session_id_value}")
+    logger.warning("STARTING ANALYSIS FOR SESSION ID: %s", session_id_value)
     initialisation_result = await ensid_screening_status_initialisation(session_id_value, SessionFactory())
     all_ens_ids = await get_ens_ids_for_session_id("supplier_master_data",["ens_id", "session_id", "bvd_id", "name", "country", "national_id"], session_id_value, session)
 
@@ -405,23 +445,10 @@ async def run_analysis(data, session):
 
     try:
 
-        # 2. Orbis Data Fetch For All Concurrently (In Batches of 20 Concurrent Suppliers)
-        orbis_batch_size = 1
-        orbis_batches = batch_generator(all_ens_ids, orbis_batch_size)
-        orbis_retrieval_status = []
-        for orbis_batch in orbis_batches:
-            # / --- UPDATE ENSID STATUS
-            ens_ids_rows = [{**{"ens_id": entry["ens_id"]}, "orbis_retrieval_status": STATUS.IN_PROGRESS} for entry in orbis_batch]
-            insert_status = await upsert_ensid_screening_status(ens_ids_rows, session_id_value, SessionFactory())
-            # print(insert_status)
-
-            # / --- RUN ORBIS RETRIEVAL FOR BATCH
-            orbis_tasks = [run_orbis(entry["ens_id"], entry["session_id"], entry["bvd_id"], SessionFactory()) for entry in orbis_batch]
-            orbis_batch_result = await asyncio.gather(*orbis_tasks)
-            orbis_retrieval_status.extend(orbis_batch_result)
+        # Screening Batch run_analysis_tasks will Now Perform Orbis Retrieval and Analysis for ENS ID
 
         screening_batch_size = 1
-        screening_batches = batch_generator(all_ens_ids, screening_batch_size) # TODO Change input here based on success/fail
+        screening_batches = batch_generator(all_ens_ids, screening_batch_size)
         screening_retrieval_status = []
         for screening_batch in screening_batches:
             # / --- UPDATE ENSID STATUS
@@ -433,7 +460,7 @@ async def run_analysis(data, session):
             screening_tasks = [run_analysis_tasks(entry, SessionFactory()) for entry in screening_batch]
             screening_batch_result = await asyncio.gather(*screening_tasks)
             screening_retrieval_status.extend(screening_batch_result)
-            print("|| output ||", screening_batch_result)
+            logger.info("|| output || %s", screening_batch_result)
 
         session_status_cols = [{"screening_analysis_status": STATUS.COMPLETED, "overall_status": STATUS.COMPLETED}]
         insert_status = await upsert_session_screening_status(session_status_cols, session_id_value, SessionFactory())
@@ -446,7 +473,7 @@ async def run_analysis(data, session):
 
     except Exception as e:
 
-        print(f"ERROR IN ANALYSIS PIPELINE: {str(e)}")
+        logger.error(f"ERROR IN ANALYSIS PIPELINE: {str(e)}")
 
         session_status_cols = [{"screening_analysis_status": STATUS.FAILED, "overall_status": STATUS.FAILED}]
         insert_status = await upsert_session_screening_status(session_status_cols, session_id_value, SessionFactory())

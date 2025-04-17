@@ -5,6 +5,7 @@ from app.core.utils.db_utils import *
 import os
 import json
 from app.core.config import get_settings
+from app.schemas.logger import logger
 async def ovrr(data, session):
 
     ens_id_value = data.get("ens_id")
@@ -20,17 +21,17 @@ async def ovrr(data, session):
         sape_medium_trigger = False
         sape_low_trigger = False
         for row in sape:
-            print(row)
+            logger.info(row)
             if row.get("kpi_flag"):
                 if "High" in row.get('kpi_rating'):
-                    print("high")
+                    logger.info("high")
                     sape_high_trigger = True
                     break
                 elif "Medium" in row.get('kpi_rating'):
-                    print("medium")
+                    logger.info("medium")
                     sape_medium_trigger = True
                 elif "Low" in row.get('kpi_rating'):
-                    print("low")
+                    logger.info("low")
                     sape_low_trigger = True
         sanctions_rating = "High" if sape_high_trigger else "Medium" if sape_medium_trigger else "Low" if sape_low_trigger else "No Alerts"
 
@@ -144,7 +145,7 @@ async def ovrr(data, session):
             "kpi_rating": fin_rating
         }
 
-        print("financial rating:",fin_rating)
+        logger.info("financial rating: %s", fin_rating)
 
         # ---------------------------------------------------------------- RFCT & LGRK
 
@@ -295,12 +296,12 @@ async def ovrr(data, session):
         insert_status = await upsert_kpi("ovar", ovr_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
-            print(insert_status)
+            logger.error(insert_status)
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure","info": "database_saving_error"}
 
     except Exception as e:
-        print(f"Error in module: {kpi_area_module}, {str(e)}")
+        logger.error(f"Error in module: {kpi_area_module}, {str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}

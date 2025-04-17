@@ -3,112 +3,213 @@ from app.core.utils.db_utils import *
 import re
 from datetime import datetime
 import json
+from app.schemas.logger import logger
+
+
 async def sape_summary(data, session):
-    required_columns = ["kpi_area", "kpi_flag", "kpi_rating", "kpi_value", "kpi_code"]
+    logger.warning("Performing Sanctions Summary Analysis...")
+
+    area = "sanctions"  # Changed from "SAN" to "sanctions" as per requirements
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
 
-    retrieved_data = await get_dynamic_ens_data("sape", required_columns, ens_id_value, session_id_value, session)
-    if not retrieved_data:
-        return ["No notable sanction findings for the entity."]
+    try:
+        required_columns = ["kpi_area", "kpi_flag", "kpi_rating", "kpi_value", "kpi_code"]
 
-    summary_sentences = []
-    main_sanctions_found = False
-    san3a_findings_found = False
+        retrieved_data = await get_dynamic_ens_data("sape", required_columns, ens_id_value, session_id_value, session)
 
-    target_mapping = {
-        "org": "organisation",
-        "person": "individuals associated with this entity"
-    }
+        if not retrieved_data:
+            summary_text = "No notable sanction findings for the entity."
+            summary_data = [{"area": area, "summary": summary_text}]
 
-    # Process main sanctions
-    for record in retrieved_data:
-        kpi_area = record.get("kpi_area", "").strip().lower()
-        kpi_flag = record.get("kpi_flag")
-        kpi_rating = record.get("kpi_rating")
-        kpi_code = record.get("kpi_code")
-        kpi_values = record.get("kpi_value")
+            insert_status = await upsert_dynamic_ens_data_summary("summary", summary_data, ens_id_value, session_id_value,
+                                                          session)
 
-        if kpi_area == "san" and kpi_code == "SAN3A":
-            continue
-        if kpi_area != "san" or not kpi_flag or kpi_rating not in ["High", "Medium", "Low"]:
-            continue
-        try:
-            kpi_values_json = json.loads(kpi_values)
-        except json.JSONDecodeError:
-            continue
-
-        count_str = kpi_values_json.get("count", "0")
-        if count_str == "5 or more":
-            count = 5
-            count_display = "5 or more"
-        else:
-            try:
-                count = int(count_str)
-                count_display = str(count)
-            except (ValueError, TypeError):
-                count = 0
-                count_display = "0"
-        target = kpi_values_json.get("target", "").lower()
-        findings = kpi_values_json.get("findings", [])
-        if not findings:
-            continue
-
-        earliest_year = None
-        processed_findings = []
-        for finding in findings:
-            eventdt = finding.get("eventdt")
-            event_desc = finding.get("eventDesc", "").strip()
-            entity_name = finding.get("entityName", "Unknown Entity")
-
-            if eventdt and eventdt not in ["No event date available", "No Date"]:
-                try:
-                    event_date = datetime.strptime(eventdt, "%Y-%m-%d")
-                    event_year = event_date.year
-                    if earliest_year is None or event_year < earliest_year:
-                        earliest_year = event_year
-                    processed_findings.append({"date": event_date, "desc": event_desc, "entityName": entity_name})
-                except ValueError:
-                    processed_findings.append({"date": None, "desc": event_desc, "entityName": entity_name})
+            if insert_status["status"] == "success":
+                logger.warning(f"{area} Summary... Completed Successfully")
+                return [summary_text]
             else:
-                processed_findings.append({"date": None, "desc": event_desc, "entityName": entity_name})
+                logger.error(insert_status)
+                return [summary_text]
+        summary_sentences = []
+        main_sanctions_found = False
+        san3a_findings_found = False
 
-        processed_findings.sort(key=lambda x: x["date"] if x["date"] else datetime.min, reverse=True)
+        target_mapping = {
+            "org": "organisation",
+            "person": "individuals associated with this entity"
+        }
 
-        if count > 0:
-            target_display = target_mapping.get(target, target)
-            summary = f"There are {count_display} sanction events"
-            if target in ["org", "person"]:
-                summary += f" for the {target_display}."
-            else:
-                summary += "."
-            if earliest_year:
-                summary += f" The findings have been since {earliest_year}."
-            if processed_findings:
-                summary += " Some of the most recent sanctions events include:\n"
-                for finding in processed_findings[:2]:
-                    event_desc = finding["desc"]
-                    entity_name = finding.get("entityName", "Unknown Entity")
-                    if finding["date"]:
-                        event_year = finding["date"].year
-                        summary += f"- In {event_year}, {entity_name}: {event_desc}\n"
-                    else:
-                        summary += f"- {entity_name}: {event_desc}\n" if entity_name else f"- {event_desc}\n"
-            summary_sentences.append(summary)
-            main_sanctions_found = True
+        # Process main sanctions
+        for record in retrieved_data:
+            kpi_area = record.get("kpi_area", "").strip().lower()
+            kpi_flag = record.get("kpi_flag")
+            kpi_rating = record.get("kpi_rating")
+            kpi_code = record.get("kpi_code")
+            kpi_values = record.get("kpi_value")
 
-    # Process SAN3A
-    for record in retrieved_data:
-        kpi_area = record.get("kpi_area", "").strip().lower()
-        kpi_flag = record.get("kpi_flag")
-        kpi_code = record.get("kpi_code")
-        kpi_values = record.get("kpi_value")
-        print('-----------',kpi_area,kpi_flag,kpi_code)
-        if kpi_area == "san" and kpi_code == "SAN3A" and kpi_flag:
-            if not kpi_values:
+            if kpi_area == "san" and kpi_code == "SAN3A":
+                continue
+            if kpi_area != "san" or not kpi_flag or kpi_rating not in ["High", "Medium", "Low"]:
                 continue
             try:
                 kpi_values_json = json.loads(kpi_values)
+            except json.JSONDecodeError:
+                continue
+
+            count_str = kpi_values_json.get("count", "0")
+            if count_str == "5 or more":
+                count = 5
+                count_display = "5 or more"
+            else:
+                try:
+                    count = int(count_str)
+                    count_display = str(count)
+                except (ValueError, TypeError):
+                    count = 0
+                    count_display = "0"
+            target = kpi_values_json.get("target", "").lower()
+            findings = kpi_values_json.get("findings", [])
+            if not findings:
+                continue
+
+            earliest_year = None
+            processed_findings = []
+            for finding in findings:
+                eventdt = finding.get("eventdt")
+                event_desc = finding.get("eventDesc", "").strip()
+                entity_name = finding.get("entityName", "Unknown Entity")
+
+                if eventdt and eventdt not in ["No event date available", "No Date"]:
+                    try:
+                        event_date = datetime.strptime(eventdt, "%Y-%m-%d")
+                        event_year = event_date.year
+                        if earliest_year is None or event_year < earliest_year:
+                            earliest_year = event_year
+                        processed_findings.append({"date": event_date, "desc": event_desc, "entityName": entity_name})
+                    except ValueError:
+                        processed_findings.append({"date": None, "desc": event_desc, "entityName": entity_name})
+                else:
+                    processed_findings.append({"date": None, "desc": event_desc, "entityName": entity_name})
+
+            processed_findings.sort(key=lambda x: x["date"] if x["date"] else datetime.min, reverse=True)
+
+            if count > 0:
+                target_display = target_mapping.get(target, target)
+                summary = f"There are {count_display} sanction events"
+                if target in ["org", "person"]:
+                    summary += f" for the {target_display}."
+                else:
+                    summary += "."
+                if earliest_year:
+                    summary += f" The findings have been since {earliest_year}."
+                if processed_findings:
+                    summary += " Some of the most recent sanctions events include:\n"
+                    for finding in processed_findings[:2]:
+                        event_desc = finding["desc"]
+                        entity_name = finding.get("entityName", "Unknown Entity")
+                        if finding["date"]:
+                            event_year = finding["date"].year
+                            summary += f"- In {event_year}, {entity_name}: {event_desc}\n"
+                        else:
+                            summary += f"- {entity_name}: {event_desc}\n" if entity_name else f"- {event_desc}\n"
+                summary_sentences.append(summary)
+                main_sanctions_found = True
+
+        # Process SAN3A
+        for record in retrieved_data:
+            kpi_area = record.get("kpi_area", "").strip().lower()
+            kpi_flag = record.get("kpi_flag")
+            kpi_code = record.get("kpi_code")
+            kpi_values = record.get("kpi_value")
+
+            if kpi_area == "san" and kpi_code == "SAN3A" and kpi_flag:
+                if not kpi_values:
+                    continue
+                try:
+                    kpi_values_json = json.loads(kpi_values)
+                    count_str = kpi_values_json.get("count", "0")
+                    if count_str == "5 or more":
+                        count = 5
+                        count_display = "5 or more"
+                    else:
+                        try:
+                            count = int(count_str)
+                            count_display = str(count)
+                        except (ValueError, TypeError):
+                            count = 0
+                            count_display = "0"
+                    if count > 0:
+                        summary = f"There are {count_display} potential sanctions findings within the corporate group."
+                        summary_sentences.append(summary)
+                        san3a_findings_found = True
+                except json.JSONDecodeError:
+                    continue
+
+        if not main_sanctions_found and not san3a_findings_found:
+            summary_sentences.append("No notable sanction findings for the entity.")
+
+        summary_text = "\n".join(summary_sentences)
+        logger.info("Sanctions summary: %s", summary_text)
+
+        try:
+            summary_data = [{"area": area, "summary": summary_text}]
+            insert_status = await upsert_dynamic_ens_data_summary(
+                "summary", summary_data, ens_id_value, session_id_value, session
+            )
+
+            if insert_status["status"] == "success":
+                logger.warning(f"{area} Summary... Completed Successfully")
+            else:
+                logger.error(insert_status)
+
+            return summary_sentences
+
+        except Exception as e:
+            logger.error(f"Error in {area} summary: {str(e)}")
+            return ["No notable sanction findings for the entity."]
+
+    except Exception as e:
+        logger.error(f"Error in module: {area}: {str(e)}")
+        return ["No notable sanction findings for the entity."]
+
+async def bcf_summary(data, session):
+    logger.warning("Performing BCF Summary Analysis...")
+
+    ens_id_value = data.get("ens_id")
+    session_id_value = data.get("session_id")
+
+    try:
+        required_columns = ["kpi_area", "kpi_flag", "kpi_rating", "kpi_value"]
+        retrieved_data = await get_dynamic_ens_data("rfct", required_columns, ens_id_value, session_id_value, session)
+
+        summary_sentences = []
+        bcf_processed = False
+        bcf_has_findings = False
+        entity_type = "entity"
+
+        if not retrieved_data:
+            summary_sentences.append("No notable Bribery, Corruption, or Fraud findings for this entity.")
+        else:
+            for record in retrieved_data:
+                kpi_area = record.get("kpi_area", "").strip().upper()
+                kpi_flag = record.get("kpi_flag")
+                kpi_rating = record.get("kpi_rating")
+                kpi_values = record.get("kpi_value")
+
+                if kpi_area != "BCF":
+                    continue
+
+                bcf_processed = True
+
+                if not kpi_flag or kpi_rating not in ["High", "Medium", "Low"]:
+                    continue
+
+                try:
+                    kpi_values_json = json.loads(kpi_values)
+                except json.JSONDecodeError:
+                    continue
+
                 count_str = kpi_values_json.get("count", "0")
                 if count_str == "5 or more":
                     count = 5
@@ -120,119 +221,84 @@ async def sape_summary(data, session):
                     except (ValueError, TypeError):
                         count = 0
                         count_display = "0"
+
+                target = kpi_values_json.get("target", "").lower()
+                findings = kpi_values_json.get("findings", [])
+
+                if not findings:
+                    continue
+
+                earliest_year = None
+                processed_findings = []
+                for finding in findings:
+                    eventdt = finding.get("eventdt")
+                    event_desc = finding.get("eventDesc", "").strip()
+                    if eventdt:
+                        try:
+                            event_date = datetime.strptime(eventdt, "%Y-%m-%d")
+                            event_year = event_date.year
+                            if earliest_year is None or event_year < earliest_year:
+                                earliest_year = event_year
+                            processed_findings.append({"date": event_date, "desc": event_desc})
+                        except ValueError:
+                            pass
+
+                processed_findings.sort(key=lambda x: x["date"], reverse=True)
                 if count > 0:
-                    summary = f"There are {count_display} potential sanctions findings within the corporate group."
+                    bcf_has_findings = True
+                    summary = f"There are {count_display} Bribery, Corruption, or Fraud findings"
+
+                    if target == "org":
+                        summary += " for the organisation."
+                    elif target == "person":
+                        summary += " for the individuals associated with this entity."
+                    else:
+                        summary += " for this entity."
+
+                    if earliest_year:
+                        summary += f" The findings has been since {earliest_year}."
+                    if processed_findings:
+                        summary += " Some of the most recent findings include:\n"
+                        for finding in processed_findings[:2]:  # Use the 2 most recent events
+                            event_year = finding["date"].year
+                            event_desc = finding["desc"]
+                            summary += f"- In {event_year}, {event_desc}\n"
+
                     summary_sentences.append(summary)
-                    san3a_findings_found = True
-            except json.JSONDecodeError as e:
-                continue
 
-    if not main_sanctions_found and not san3a_findings_found:
-        summary_sentences.append("No notable sanction findings for the entity.")
-    print("fefwefwefwefwewf", summary_sentences)
-    return summary_sentences
+            if bcf_processed and not bcf_has_findings:
+                summary_sentences.append(f"No notable Bribery, Corruption, or Fraud findings for this {entity_type}.")
 
+            if not summary_sentences:
+                summary_sentences = ["No notable Bribery/Corruption/Fraud findings for this entity."]
 
-async def bcf_summary(data, session):
-    required_columns = ["kpi_area", "kpi_flag", "kpi_rating", "kpi_value"]
-    ens_id_value = data.get("ens_id")
-    session_id_value = data.get("session_id")
-
-    retrieved_data = await get_dynamic_ens_data("rfct", required_columns, ens_id_value, session_id_value, session)
-
-    if not retrieved_data:
-        return ["No notable Bribery, Corruption, or Fraud findings for this entity."]
-
-    summary_sentences = []
-    bcf_processed = False
-    bcf_has_findings = False
-    entity_type = "entity"
-
-    for record in retrieved_data:
-        kpi_area = record.get("kpi_area", "").strip().upper()
-        kpi_flag = record.get("kpi_flag")
-        kpi_rating = record.get("kpi_rating")
-        kpi_values = record.get("kpi_value")
-
-        if kpi_area != "BCF":
-            continue
-
-        bcf_processed = True
-
-        if not kpi_flag or kpi_rating not in ["High", "Medium", "Low"]:
-            continue
+        summary_text = "\n".join(summary_sentences)
+        logger.info("BCF findings are: %s", summary_text)
 
         try:
-            kpi_values_json = json.loads(kpi_values)
-        except json.JSONDecodeError:
-            continue
+            summary_data = [{"area": "bribery_corruption_overall", "summary": summary_text}]
+            insert_status = await upsert_dynamic_ens_data_summary("summary", summary_data, ens_id_value,
+                                                                  session_id_value, session)
 
-        count_str = kpi_values_json.get("count", "0")
-        if count_str == "5 or more":
-            count = 5
-            count_display = "5 or more"
-        else:
-            try:
-                count = int(count_str)
-                count_display = str(count)
-            except (ValueError, TypeError):
-                count = 0
-                count_display = "0"
-
-        target = kpi_values_json.get("target", "").lower()
-        findings = kpi_values_json.get("findings", [])
-
-        if not findings:
-            continue
-
-        earliest_year = None
-        processed_findings = []
-        for finding in findings:
-            eventdt = finding.get("eventdt")
-            event_desc = finding.get("eventDesc", "").strip()
-            if eventdt:
-                try:
-                    event_date = datetime.strptime(eventdt, "%Y-%m-%d")
-                    event_year = event_date.year
-                    if earliest_year is None or event_year < earliest_year:
-                        earliest_year = event_year
-                    processed_findings.append({"date": event_date, "desc": event_desc})
-                except ValueError:
-                    pass
-
-        processed_findings.sort(key=lambda x: x["date"], reverse=True)
-        if count > 0:
-            bcf_has_findings = True
-            summary = f"There are {count_display} Bribery, Corruption, or Fraud findings"
-
-            if target == "org":
-                summary += " for the organisation."
-            elif target == "person":
-                summary += " for the individuals associated with this entity."
+            if insert_status["status"] == "success":
+                logger.warning("BCF Analysis... Completed Successfully")
             else:
-                summary += " for this entity."
+                logger.error(insert_status)
 
-            if earliest_year:
-                summary += f" The findings has been since {earliest_year}."
-            if processed_findings:
-                summary += " Some of the most recent findings include:\n"
-                for finding in processed_findings[:2]:  # Use the 2 most recent events
-                    event_year = finding["date"].year
-                    event_desc = finding["desc"]
-                    summary += f"- In {event_year}, {event_desc}\n"
+        except Exception as e:
+            logger.error(f"Error in BCF summary: {str(e)}")
 
-            summary_sentences.append(summary)
+        return summary_sentences
 
-    if bcf_processed and not bcf_has_findings:
-        summary_sentences.append(f"No notable Bribery, Corruption, or Fraud findings for this {entity_type}.")
 
-    if not summary_sentences:
-        return ["No notable Bribery/Corruption/Fraud findings for this entity."]
+    except Exception as e:
+        logger.error(f"Error in BCF analysis: {str(e)}")
+        return ["No notable Bribery, Corruption, or Fraud findings for this entity."]
 
-    print("bcf findings are:", summary_sentences)
-    return summary_sentences
 
 async def state_ownership_summary(data, session):
+    logger.warning("Performing State Ownership and PEP Analysis...")
+
     required_columns = ["kpi_area", "kpi_definition", "kpi_flag", "kpi_code", "kpi_rating", "kpi_details", "kpi_value"]
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
@@ -240,12 +306,14 @@ async def state_ownership_summary(data, session):
     all_data = await get_dynamic_ens_data("sown", required_columns, ens_id_value, session_id_value, session)
 
     summary_sentences = []
+
+    # Track processed areas and findings
+    sco_processed = False
     pep_found = False
     pep3a_found = False
-    country_risk_found = False
 
-    # Process State Ownership data
     if all_data:
+        # Process State Ownership data
         for record in all_data:
             kpi_area = record.get("kpi_area", "").strip().lower()
             kpi_flag = record.get("kpi_flag")
@@ -255,14 +323,16 @@ async def state_ownership_summary(data, session):
 
             if kpi_area != "sco":
                 continue
+
+            sco_processed = True
+
             # Process State Ownership
             if kpi_flag:
-                summary_sentences.append(f" High risk identified for the entity: {kpi_definition}")
+                summary_sentences.append(f"High risk identified for the entity: {kpi_definition}")
             else:
                 summary_sentences.append(f"{kpi_details}")
 
-    # Process PEP data
-    if all_data:
+        # Process PEP data
         pep_findings = []
         count_display = "0"
         target = ""
@@ -279,7 +349,7 @@ async def state_ownership_summary(data, session):
             try:
                 kpi_values_json = json.loads(kpi_values)
             except json.JSONDecodeError as e:
-                print("JSON Parsing Error:", e, kpi_values)
+                logger.error(f"JSON Parsing Error: {e}, {kpi_values}")
                 continue
 
             count_str = kpi_values_json.get("count", "0")
@@ -341,8 +411,7 @@ async def state_ownership_summary(data, session):
                         summary += f"- {entity_name}: {event_desc}\n"
             summary_sentences.append(summary)
 
-    # Process PEP3A findings
-    if all_data:
+        # Process PEP3A findings
         for record in all_data:
             kpi_area = record.get("kpi_area", "").strip().lower()
             kpi_flag = record.get("kpi_flag")
@@ -366,80 +435,99 @@ async def state_ownership_summary(data, session):
 
                     if count > 0:
                         pep3a_found = True
-                        summary = f"There are {count_display} potential PEP findings within the corporate group."
-                        summary_sentences.append(summary)
+                        summary_sentences.append(
+                            f"There are {count_display} potential PEP findings within the corporate group.")
                 except json.JSONDecodeError:
                     continue
 
-    # Process Country Risk data
-    country_risk_profile_activate = False
-    if all_data and country_risk_profile_activate:
-        for record in all_data:
-            kpi_area = record.get("kpi_area", "").strip().lower()
-            kpi_flag = record.get("kpi_flag")
-            kpi_rating = record.get("kpi_rating")
-            kpi_definition = record.get("kpi_definition")
-
-            if kpi_area != "cr":
-                continue
-            if kpi_flag and kpi_rating in ["High", "Medium"]:  # Only process if rating is High or Medium
-                country_risk_found = True
-                if kpi_rating == "High":
-                    summary_sentences.append(f"High risk identified for the country: {kpi_definition}")
-                elif kpi_rating == "Medium":
-                    summary_sentences.append(f"Moderate risk identified for the country: {kpi_definition}")
-
-    if not summary_sentences or (len(summary_sentences) == 0 and not pep_found and not pep3a_found and not country_risk_found):
+    if not summary_sentences or (len(summary_sentences) == 0 and not pep_found and not pep3a_found ):
         summary_sentences.append("No state ownership information available for the entity.")
     if not pep_found and not pep3a_found:
         summary_sentences.append("No PEP findings for the individual.")
 
-    print('State ownership, pep and CR:',summary_sentences)
+    combined_summary = "\n\n".join(summary_sentences).strip()
+
+    logger.info("State Ownership and PEP summary: %s", combined_summary)
+
+    try:
+        summary_data = [{"area": "government_political", "summary": combined_summary}]
+        insert_status = await upsert_dynamic_ens_data_summary(
+            "summary",
+            summary_data,
+            ens_id_value,
+            session_id_value,
+            session
+        )
+
+        if insert_status["status"] == "success":
+            logger.warning("State Ownership and PEP Analysis completed successfully")
+        else:
+            logger.error(f"Failed to save state ownership summary: {insert_status}")
+
+    except Exception as e:
+        logger.error(f"Error in state ownership summary: {str(e)}")
+
     return summary_sentences
 
-
 async def financials_summary(data, session):
+    logger.warning("Performing Financials Analysis...")
+
     required_columns = ["kpi_area", "kpi_definition", "kpi_flag", "kpi_rating", "kpi_details"]
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
 
     retrieved_data = await get_dynamic_ens_data("fstb", required_columns, ens_id_value, session_id_value, session)
 
-    if not retrieved_data:
-        return ["No financials available."]
-
     summary_sentences = []
     financials_found = False
 
-    for record in retrieved_data:
-        kpi_area = record.get("kpi_area", "").strip().lower()
-        kpi_flag = record.get("kpi_flag")
-        kpi_rating = record.get("kpi_rating")
-        kpi_definition = record.get("kpi_definition")
-        kpi_details = record.get("kpi_details")
+    if not retrieved_data:
+        summary_text = "No financials available."
+    else:
+        for record in retrieved_data:
+            kpi_area = record.get("kpi_area", "").strip().lower()
+            kpi_flag = record.get("kpi_flag")
+            kpi_rating = record.get("kpi_rating")
+            kpi_details = record.get("kpi_details")
 
-        if kpi_area != "bkr":
-            continue
+            if kpi_area != "bkr":
+                continue
 
-        # Process Financials (BKR)
-        if kpi_flag and kpi_rating in ["High", "Medium", "Low"]:
-            summary_sentences.append(kpi_details)
-            financials_found = True
+            # Process Financials (BKR)
+            if kpi_flag and kpi_rating in ["High", "Medium", "Low"]:
+                summary_sentences.append(kpi_details)
+                financials_found = True
 
-    if not financials_found:
-        summary_sentences.append("No financials available.")
+        if not financials_found:
+            summary_sentences.append("No financials available.")
+
+    summary_text = "\n".join(summary_sentences) if summary_sentences else "No financials available."
+    logger.info("Financials summary: %s", summary_text)
+
+    try:
+        summary_data = [{"area": "financials", "summary": summary_text}]
+        insert_status = await upsert_dynamic_ens_data_summary("summary", summary_data, ens_id_value, session_id_value,
+                                                              session)
+
+        if insert_status["status"] == "success":
+            logger.warning("Financials Analysis... Completed Successfully")
+        else:
+            logger.error(insert_status)
+
+    except Exception as e:
+        logger.error(f"Error in financials summary: {str(e)}")
 
     return summary_sentences
 
 async def adverse_media_summary(data, session):
+    logger.warning("Performing Adverse Media Analysis...")
+
     required_columns = ["kpi_area", "kpi_flag", "kpi_code", "kpi_rating", "kpi_value"]
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
 
     retrieved_data = await get_dynamic_ens_data("rfct", required_columns, ens_id_value, session_id_value, session)
     other_news = await get_dynamic_ens_data("news", required_columns, ens_id_value, session_id_value, session)
-    if not retrieved_data and not other_news:
-        return ["No adverse media findings for this entity."]
 
     summary_sentences = []
     amr_processed = False
@@ -452,7 +540,6 @@ async def adverse_media_summary(data, session):
 
     # Process main AMR and AMO findings
     for record in retrieved_data:
-
         kpi_area = record.get("kpi_area", "").strip().lower()
         kpi_flag = record.get("kpi_flag")
         kpi_rating = record.get("kpi_rating")
@@ -522,6 +609,7 @@ async def adverse_media_summary(data, session):
         processed_findings.sort(key=lambda x: x["date"], reverse=True)
 
         if count > 0:
+            summary = ""
             if kpi_area == "amr":
                 amr_has_findings = True
                 summary = f"There are {count_display} adverse media reputation risk findings"
@@ -540,30 +628,23 @@ async def adverse_media_summary(data, session):
                     event_desc = finding["desc"]
                     summary += f"- In {event_year}, {event_desc}\n"
 
-            summary_sentences.append(summary)
+            if kpi_area == "amr":
+                summary_sentences.append(summary)
+            elif kpi_area == "amo":
+                summary_sentences.append(summary)
 
     # Check for NWS1A and ONF1A if no AMR or AMO findings
-    if not amr_has_findings and not amo_has_findings:
-        for record in other_news:
-            kpi_code = record.get("kpi_code", "").strip().upper()
-            kpi_flag = record.get("kpi_flag")
-            kpi_rating = record.get("kpi_rating")
+    for record in other_news:
+        kpi_code = record.get("kpi_code", "").strip().upper()
+        kpi_flag = record.get("kpi_flag")
+        kpi_rating = record.get("kpi_rating")
 
-            if kpi_code == "NWS1A" and kpi_flag and kpi_rating == "High": #TODO CHANGE (LATER) REMOVE H/M/L Logic everywhere from summary once satisfied that kpi_flag represents whether to show in report or not
-                summary_sentences.append("There are potential adverse news findings from the advanced screening.")
-                nws_or_onf_findings = True
-                break
-        else:
-            # If no NWS1A, check for ONF1A
-            for record in other_news:
-                kpi_code = record.get("kpi_code", "").strip().upper()
-                kpi_flag = record.get("kpi_flag")
-                kpi_rating = record.get("kpi_rating")
-
-                if kpi_code == "ONF1A" and kpi_flag and kpi_rating == "High":
-                    summary_sentences.append("There are other potential news findings.")
-                    nws_or_onf_findings = True
-                    break
+        if kpi_code == "NWS1A" and kpi_flag and kpi_rating == "High":
+            summary_sentences.append("There are potential adverse news findings from the advanced screening.")
+            nws_or_onf_findings = True
+        elif kpi_code == "ONF1A" and kpi_flag and kpi_rating == "High":
+            summary_sentences.append("There are other potential news findings.")
+            nws_or_onf_findings = True
 
     # Process additional AMR2A findings
     for record in retrieved_data:
@@ -595,10 +676,26 @@ async def adverse_media_summary(data, session):
             except json.JSONDecodeError:
                 continue
 
+    # Add default messages if no findings
     if not amr_has_findings and not amo_has_findings and not amr2a_has_findings and not amo2a_has_findings and not nws_or_onf_findings:
         summary_sentences.append(f"No adverse media findings.")
 
-    print("AMO and AMR are;", summary_sentences)
+    combined_summary = "\n\n".join(summary_sentences)
+    logger.info("AMO and AMR are: %s", combined_summary)
+
+    try:
+        summary_data = [{"area": "other_adverse_media", "summary": combined_summary}]
+        insert_status = await upsert_dynamic_ens_data_summary("summary", summary_data, ens_id_value, session_id_value,
+                                                              session)
+
+        if insert_status["status"] == "success":
+            logger.warning("Adverse Media Analysis... Completed Successfully")
+        else:
+            logger.error(insert_status)
+
+    except Exception as e:
+        logger.error(f"Error in adverse media summary: {str(e)}")
+
     return summary_sentences
 
 async def additional_indicators_summary(data, session):
@@ -606,6 +703,7 @@ async def additional_indicators_summary(data, session):
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
 
+    # Retrieve data for cybersecurity, ESG, and website
     retrieved_data = await get_dynamic_ens_data("cyes", required_columns, ens_id_value, session_id_value, session)
 
     if not retrieved_data:
@@ -616,6 +714,7 @@ async def additional_indicators_summary(data, session):
     website_findings = False
     strong_profile = False
 
+    # Process retrieved data
     for record in retrieved_data:
         kpi_area = record.get("kpi_area", "").strip().lower()
         kpi_code = record.get("kpi_code", "").strip()
@@ -642,6 +741,7 @@ async def additional_indicators_summary(data, session):
 
     result = []
 
+    # Process results based on findings
     if strong_profile:
         result.append("The entity has a strong profile in cybersecurity and ESG.")
     elif cyb_findings or esg_findings:
@@ -651,13 +751,38 @@ async def additional_indicators_summary(data, session):
         if esg_findings:
             findings.append("ESG")
         result.append(f"There are notable findings in {', '.join(findings)} screening/profiling for this entity.")
-        print("There are findings for ESG or Cyber")
+        logger.info("There are findings for ESG or Cyber")
+
     if website_findings:
         result.append("There are notable findings in website screening/profiling for this entity.")
-        print("There are findings for WEB")
+        logger.info("There are findings for WEB")
+
     if not result:
         result.append("No notable findings in screening/profiling of ESG, cybersecurity, or website for this entity.")
-        print("There are no findings for ESG and Cyber")
+        logger.info("There are no findings for ESG and Cyber")
+
+    # Join the result list into a single string with line breaks
+    result_text = "\n\n".join(result).strip()
+
+    # Save the summary to the database
+    try:
+        summary_data = [{"area": "additional_indicator", "summary": result_text}]
+        insert_status = await upsert_dynamic_ens_data_summary(
+            "summary",
+            summary_data,
+            ens_id_value,
+            session_id_value,
+            session
+        )
+
+        if insert_status["status"] == "success":
+            logger.warning("Additional Indicators Analysis completed successfully")
+        else:
+            logger.error(f"Failed to save additional indicators summary: {insert_status}")
+
+    except Exception as e:
+        logger.error(f"Error in additional indicators summary: {str(e)}")
+
     return result
 
 async def legal_regulatory_summary(data, session):
@@ -771,7 +896,7 @@ async def legal_regulatory_summary(data, session):
     if not summary_sentences:
         return ["No legal or regulatory findings available."]
 
-    print('The leg and reg are :', summary_sentences)
+    logger.info(f"The leg and reg are : %s", summary_sentences)
     return summary_sentences
 
 def capitalize_after_full_stop(text):
@@ -789,6 +914,7 @@ def enforce_lowercase(text):
     return text.lower()
 
 async def overall_summary(data, session, supplier_name):
+    area = "overall"
     required_columns = ["kpi_code", "kpi_area", "kpi_rating", "kpi_flag"]
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
@@ -816,7 +942,7 @@ async def overall_summary(data, session, supplier_name):
 
     for row in retrieved_data:
         if not isinstance(row, dict):
-            print("Unexpected row format:", row)
+            logger.info(f"Unexpected row format: %s",row)
             continue
 
         kpi_code = row.get("kpi_code")
@@ -1470,5 +1596,19 @@ async def overall_summary(data, session, supplier_name):
 
     final_summary = capitalize_after_full_stop(final_summary)
 
-    print(final_summary)
+    logger.info(final_summary)
+
+    try:
+        summary_data = [{"area": area, "summary": final_summary}]
+        insert_status = await upsert_dynamic_ens_data_summary("summary", summary_data, ens_id_value, session_id_value,
+                                                              session)
+
+        if insert_status["status"] == "success":
+            logger.warning(f"{area} Summary... Completed Successfully")
+        else:
+            logger.error(insert_status)
+
+    except Exception as e:
+        logger.error(f"Error in {area} summary: {str(e)}")
+
     return final_summary

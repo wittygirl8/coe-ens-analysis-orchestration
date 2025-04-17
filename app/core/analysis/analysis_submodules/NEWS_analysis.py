@@ -8,10 +8,10 @@ from app.core.config import get_settings
 
 import requests
 from datetime import datetime
-
+from app.schemas.logger import logger
 
 async def newsscreening_main_company(data, session):
-    print("Performing News Analysis...")
+    logger.warning("Performing News Analysis...")
     kpi_area_module = "NWS"
 
     kpi_template = {
@@ -37,11 +37,11 @@ async def newsscreening_main_company(data, session):
 
     name = retrieved_data.get("name")
     country = retrieved_data.get("country")
-    print("checkpoint 1")
+    logger.info("checkpoint 1")
 
     news_url = get_settings().urls.news_backend
     url = f"{news_url}/items/news_ens_data"
-    print("url:", url)
+    logger.info(f"url: {url}")
 
     headers = {
         "accept": "application/json",
@@ -67,39 +67,41 @@ async def newsscreening_main_company(data, session):
             "country": country,
             "request_type": "single"
         }
+        try:
+            response = requests.post(url, headers=headers, json=data)
+            logger.info(f"Checking news for year {current_year}...")
 
-        response = requests.post(url, headers=headers, json=data)
-        print(f"Checking news for year {current_year}...")
-
-        if response.status_code == 200:
-            year_news = response.json().get("data", [])
-            print(f"Found {len(year_news)} news articles for {current_year}")
-            if isinstance(year_news, list):
-                print("data is a list")
-                if len(year_news)>0:
-                    valid_or_not = year_news[0].get("link", 'N/A')
+            if response.status_code == 200:
+                year_news = response.json().get("data", [])
+                logger.info(f"Found {len(year_news)} news articles for {current_year}")
+                if isinstance(year_news, list):
+                    logger.info("data is a list")
+                    if len(year_news)>0:
+                        valid_or_not = year_news[0].get("link", 'N/A')
+                    else:
+                        valid_or_not = 'N/A'
                 else:
                     valid_or_not = 'N/A'
+                if valid_or_not == 'N/A':
+                    logger.info("link is not present skipping")
+                    current_year -= 1
+                    continue
+                news_data.extend(year_news)
+                total_news += len(year_news)
+
+                if total_news >= 5:
+                    break
             else:
-                valid_or_not = 'N/A'
-            if valid_or_not == 'N/A':
-                print("link is not present skipping")
-                current_year -= 1
-                continue
-            news_data.extend(year_news)
-            total_news += len(year_news)
+                logger.error(f"Error fetching news for {current_year}: {response.status_code}")
+                return {"ens_id": ens_id, "module": "NEWS", "status": "completed"}
 
-            if total_news >= 5:
-                break
-        else:
-            print(f"Error fetching news for {current_year}: {response.status_code}")
-
-        current_year -= 1  # Move to the previous year
-
-    print(f"Total news collected: {total_news}")
+            current_year -= 1  # Move to the previous year
+        except:
+            return {"ens_id": ens_id, "module": "NEWS", "status": "failed"}
+    logger.info(f"Total news collected: {total_news}")
 
     if not news_data:
-        print("No relevant news found.")
+        logger.info("No relevant news found.")
         return {"ens_id": ens_id, "module": "NEWS", "status": "completed"}
 
     # Process the collected news
@@ -146,25 +148,25 @@ async def newsscreening_main_company(data, session):
                 continue
 
     kpi_list = [NWS1A]
-    print("kpi_list:", kpi_list)
+    logger.info(f"kpi_list: {kpi_list}")
 
     insert_status = await upsert_kpi("news", kpi_list, ens_id, session_id, session)
 
     columns_data = [{
         "sentiment_aggregation": response.json().get("sentiment-data-agg", [])
     }]
-    print(columns_data)
+    logger.info(columns_data)
 
     await insert_dynamic_ens_data("report_plot", columns_data, ens_id, session_id, session)
 
-    print("Stored in the database")
-    print("Performing News Screening Analysis for Company... Completed")
+    logger.info("Stored in the database")
+    logger.warning("Performing News Screening Analysis for Company... Completed")
 
     return {"ens_id": ens_id, "module": "NEWS", "status": "completed"}
 
 
 async def orbis_news_analysis(data, session):
-    print("Performing Adverse Media Analysis - ONF...")
+    logger.warning("Performing Adverse Media Analysis - ONF...")
 
     kpi_area_module = "ONF"
 
@@ -192,7 +194,7 @@ async def orbis_news_analysis(data, session):
         required_columns = ["orbis_news"]
         retrieved_data = await get_dynamic_ens_data("external_supplier_data", required_columns, ens_id_value, session_id_value, session)
         retrieved_data = retrieved_data[0]
-        print("no of data:", len(retrieved_data))
+        logger.info(f"no of data: {len(retrieved_data)}")
         onf = retrieved_data.get("orbis_news", None)
 
 
@@ -246,19 +248,19 @@ async def orbis_news_analysis(data, session):
             ONF1A["kpi_details"] = onf_events_detail
 
             onf_kpis.append(ONF1A)
-            print("onf_kpi:", ONF1A)
+            logger.info(f"onf_kpi: {ONF1A}")
 
         insert_status = await upsert_kpi("news", onf_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            print(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
-            print(insert_status)
+            logger.error(insert_status)
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure",
                     "info": "database_saving_error"}
     except Exception as e:
-        print(f"Error in module: {kpi_area_module}:{str(e)}")
+        logger.error(f"Error in module: {kpi_area_module}:{str(e)}")
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}
 
 

@@ -1,5 +1,6 @@
 # util functions 
-
+import json
+from app.schemas.logger import logger
 ##########################################################
 
 # for google
@@ -36,7 +37,7 @@ def aggregate_verified_flag(data):
         # Ensure the required keys exist in all dictionaries
         required_keys = {"country", "company", "verified"}
         if not all(required_keys.issubset(item.keys()) for item in data):
-            print("error2")
+            logger.warning("error2")
             raise KeyError(f"Each dictionary must contain the keys: {required_keys}")
 
         # Aggregate country and company (assuming they are consistent across the list)
@@ -66,7 +67,7 @@ def aggregate_verified_flag(data):
             "num_analysed": int(total_count)
         }
     except Exception as e:
-        print("Aggregation of verified flag error: {e}")
+        logger.error(f"Aggregation of verified flag error: {str(e)}")
 
 def calculate_metric(num_true, num_analyzed, max_articles=10):
     if num_analyzed == 0:
@@ -77,44 +78,99 @@ def calculate_metric(num_true, num_analyzed, max_articles=10):
     metric = true_percentage * weight
     return metric
 
-def filter_supplier_data(json_data, max_results:int):
-    # Extract the data list from the JSON
-    supplier_data = json_data.get('data', [])
-    matched = False
-    potential_pass = False
-    # print(supplier_data)
-    
-    # Check if there are any matches at all
-    if not supplier_data:
-        return [], False, False
-    
-    # First, check if there are any 'Selected' matches in the 'HINT' key inside the 'MATCH' dictionary
-    selected_matches = [supplier for supplier in supplier_data 
-                        if 'MATCH' in supplier and '0' in supplier['MATCH'] 
-                        and supplier['MATCH']['0']['HINT'] == 'Selected']
-    
-    if selected_matches:
-        # Return the first selected match found
-        matched = True
-        return selected_matches,potential_pass, matched
-    
-    # If no 'Selected' matches, check for 'Potential' matches with score > 0.80
-    potential_matches = [supplier for supplier in supplier_data 
-                         if 'MATCH' in supplier and '0' in supplier['MATCH'] 
-                         and supplier['MATCH']['0']['HINT'] == 'Potential' 
-                         and supplier['MATCH']['0']['SCORE'] > 0.80]
-    
-    if potential_matches:
-        potential_pass = True
-        # Sort potential matches by score in descending order and return top 2
-        sorted_potential_matches = sorted(potential_matches, key=lambda x: x['MATCH']['0']['SCORE'], reverse=True)
-        return sorted_potential_matches[:max_results], potential_pass, matched
-    
-    # If no 'Selected' or 'Potential' matches with score > 0.80, return the top scoring match
-    top_scoring_match = max(supplier_data, key=lambda x: x['MATCH']['0'].get('SCORE', 0))
+def filter_supplier_data(json_data, national_id, max_results:int):
 
-    if top_scoring_match:
-        potential_pass = True
-    
-    return [top_scoring_match], potential_pass, matched
+    try:
+        # Extract the data list from the JSON
+        supplier_data = json_data.get('data', [])
+        potential_pass = False
+        matched = False
 
+        # 0. No Matches from Orbis
+        if not supplier_data:
+            return {}, False, False
+
+        # logger.debug("- ------------------------- ALL MATCHES:")
+        # logger.debug(json.dumps(supplier_data, indent=2))
+
+        # ------------ 1. check if there are any 'Selected' matches in the 'HINT' key inside the 'MATCH' dictionary
+        selected_matches = [supplier for supplier in supplier_data
+                            if 'MATCH' in supplier and '0' in supplier['MATCH']
+                            and supplier['MATCH']['0']['HINT'] == 'Selected']
+
+        if selected_matches:
+            # Get top selected match with national id, else get top match
+            temp = selected_matches[0]
+            for match in selected_matches:
+                if str(match.get('MATCH', {}).get('0', {}).get('NATIONAL_ID', 'N/A')) == national_id:
+                    logger.info("THIS FINDING MATCHES THE UPLOADED NATIONAL ID -------------")
+                    temp = match
+                    break
+            selected_final_match = temp
+            matched = True
+
+            return selected_final_match, potential_pass, matched
+
+        # ------------ 2. If no 'Selected' matches, check for 'Potential' matches with score > 0.90
+        high_scoring_potential_matches = [supplier for supplier in supplier_data
+                             if 'MATCH' in supplier and '0' in supplier['MATCH']
+                             and supplier['MATCH']['0']['HINT'] == 'Potential'
+                             and supplier['MATCH']['0']['SCORE'] > 0.85]
+
+        if high_scoring_potential_matches:
+            potential_pass = True
+            sorted_potential_matches = sorted(high_scoring_potential_matches, key=lambda x: x['MATCH']['0']['SCORE'], reverse=True)
+            temp = max(sorted_potential_matches, key=lambda x: x['MATCH']['0'].get('SCORE', 0))
+            for match in sorted_potential_matches:
+                if str(match.get('MATCH', {}).get('0', {}).get('NATIONAL_ID', 'N/A')) == national_id:
+                    logger.info("THIS FINDING MATCHES THE UPLOADED NATIONAL ID -------------")
+                    temp = match
+                    potential_pass = False
+                    matched = True
+                    break
+
+            selected_final_match = temp
+            return selected_final_match, potential_pass, matched
+
+        # ------------ 3. If no 'Selected' or 'Potential' matches with score > 0.85, check any match > 0.65
+        low_scoring_matches = [supplier for supplier in supplier_data
+                             if 'MATCH' in supplier and '0' in supplier['MATCH']
+                             and supplier['MATCH']['0']['SCORE'] > 0.65]
+
+        if low_scoring_matches:
+            potential_pass = True
+            sorted_low_scoring_matches = sorted(low_scoring_matches, key=lambda x: x['MATCH']['0']['SCORE'],reverse=True)
+            temp = max(sorted_low_scoring_matches, key=lambda x: x['MATCH']['0'].get('SCORE', 0))
+            for match in sorted_low_scoring_matches:
+                logger.info("IN LOW SCORING MATCHES")
+                logger.info(match)
+                if str(match.get('MATCH', {}).get('0', {}).get('NATIONAL_ID', 'N/A')) == national_id:
+                    logger.info("THIS FINDING MATCHES THE UPLOADED NATIONAL ID -------------")
+                    temp = match
+                    potential_pass = False
+                    matched = True
+                    break
+            top_scoring_match = temp
+
+            if top_scoring_match:
+                return top_scoring_match, potential_pass, matched
+
+        # ------------ 4. Any match at all, first if national id exists, else top match
+        any_match = max(supplier_data, key=lambda x: x['MATCH']['0'].get('SCORE', 0))
+        if any_match:
+            potential_pass = True
+            for match in supplier_data:
+                if str(match.get('MATCH', {}).get('0', {}).get('NATIONAL_ID', 'N/A')) == national_id:
+                    logger.info("THIS FINDING MATCHES THE UPLOADED NATIONAL ID -------------")
+                    any_match = match
+                    potential_pass = False
+                    matched = True
+                    break
+            return any_match, potential_pass, matched
+
+        # ------------ 5. No match found at all, both false
+        return {}, potential_pass, matched
+
+    except Exception as e:
+        logger.error(f"Error found filtering supplier data ---> {str(e)}")
+        return {}, False, False

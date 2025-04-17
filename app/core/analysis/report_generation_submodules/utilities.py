@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from io import BytesIO
 import matplotlib.pyplot as plt
 import logging 
-
+from app.schemas.logger import logger
 load_dotenv()
 
 plots = r"app\core\analysis\report_generation_submodules\output\plots"
@@ -58,7 +58,7 @@ def upload_to_azure_blob(file_buffer: BytesIO, file_name: str, session_id):
         # Create the container if it does not exist
         if not container_client.exists():
             container_client.create_container()
-            logging.info(f"Created container: {container_name}")
+            logger.info(f"Created container: {container_name}")
 
         # Get a blob client
         blob_client = container_client.get_blob_client(file_name)
@@ -68,11 +68,11 @@ def upload_to_azure_blob(file_buffer: BytesIO, file_name: str, session_id):
         
         # Upload the buffer directly to blob storage
         blob_client.upload_blob(file_buffer, overwrite=True)
-        logging.info(f"Successfully uploaded {file_name} to Azure Blob Storage.")
+        logger.info(f"Successfully uploaded {file_name} to Azure Blob Storage.")
         return True
 
     except Exception as e:
-        logging.error(f"Failed to upload {file_name} to Azure Blob Storage. Error: {e}")
+        logger.error(f"Failed to upload {file_name} to Azure Blob Storage. Error: {e}")
         return False
     
 def clear_output_folder(output_folder):
@@ -84,8 +84,8 @@ def clear_output_folder(output_folder):
             file_path = os.path.join(output_folder, file)
             if os.path.isfile(file_path):
                 os.remove(file_path)
-                logging.info(f"Removed file: {file}")
+                logger.info(f"Removed file: {file}")
 
-        logging.info("Output folder cleared: All files removed.")
+        logger.info("Output folder cleared: All files removed.")
     else:
-        logging.info("Output folder does not exist. Nothing to clear.")
+        logger.info("Output folder does not exist. Nothing to clear.")
