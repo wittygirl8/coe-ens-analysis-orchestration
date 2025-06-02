@@ -8,6 +8,7 @@ from app.core.config import get_settings
 from collections import defaultdict
 from app.models import STATUS
 import io
+import csv
 
 
 async def format_json_log(session_id_value, session):
@@ -62,5 +63,38 @@ async def format_json_log(session_id_value, session):
     return buffer
 
 
+async def format_csv_report(data, session):
+    session_id_value = data
+    main_report_json = {}
+    upload_meta_cols = ["ens_id"]
+    ens_id = await get_dynamic_ens_data("upload_supplier_master_data", upload_meta_cols,None,
+                                           session_id_value, session)
+    # print(f"data type{ens_id}, \n {type(ens_id)}")
+    meta_cols=[]
+    for ens in ens_id:
+        meta_cols.extend(await get_join_dynamic_ens_data("upload_supplier_master_data", "supplier_master_data",ens["ens_id"], session_id_value, session))
+    meta_cols = [
+        {clean_key(key): value for key, value in row.items()}
+        for row in meta_cols
+    ]
 
+    # print(f"meta_cols-----{meta_cols}")
+    fieldnames = list(meta_cols[0].keys()) if meta_cols else []
+    buffer = io.StringIO()
+    csv_writer = csv.DictWriter(buffer, fieldnames=fieldnames, extrasaction='ignore')
 
+    csv_writer.writeheader()
+    for row in meta_cols:
+        csv_writer.writerow(row)
+
+    # Convert StringIO to BytesIO to return as binary
+    byte_buffer = io.BytesIO(buffer.getvalue().encode('utf-8-sig'))
+    byte_buffer.seek(0)
+
+    return byte_buffer
+
+def clean_key(key: str) -> str:
+    # Remove prefix like "left." or "right."
+    key = key.split('.')[-1]
+    # Replace underscores with spaces and capitalize each word
+    return key.replace('_', ' ').title()

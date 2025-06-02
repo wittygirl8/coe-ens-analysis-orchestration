@@ -7,7 +7,7 @@ async def legal_analysis(data, session):
 
     module_activation = False
 
-    logger.warning("Performing Legal Analysis...")
+    logger.info("Performing Legal Analysis...")
 
     kpi_area_module = "LEG"
 
@@ -51,7 +51,7 @@ async def legal_analysis(data, session):
         person_info_none = all(person.get("grid_legal", None) is None for person in person_retrieved_data)
 
         if person_info_none and (legal is None) and (grid_legal is None):
-            logger.warning(f"{kpi_area_module} Analysis... Completed With No Data")
+            logger.info(f"{kpi_area_module} Analysis... Completed With No Data")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "no_data"}
 
         # ---------------- LEG1A - Legal Event - Organisation Level
@@ -115,7 +115,7 @@ async def legal_analysis(data, session):
         insert_status = await upsert_kpi("lgrk", legal_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure","info": "database_saving_error"}

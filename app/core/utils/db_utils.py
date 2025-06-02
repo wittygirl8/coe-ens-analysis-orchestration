@@ -1,5 +1,5 @@
 from fastapi import Depends
-from sqlalchemy import and_, update, desc
+from sqlalchemy import and_, update, desc, join
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -16,11 +16,79 @@ from app.schemas.logger import logger
 # async def update_dynamic_ens_data(table_name: str, columns_data: dict, ens_id: str):
 
 
+from sqlalchemy.orm import aliased
+from sqlalchemy import select, and_
+
+async def get_join_dynamic_ens_data(
+    left_table_name: str,
+    right_table_name: str,
+    ens_id: str = None,
+    session_id: str = None,
+    session: AsyncSession = Depends(deps.get_session)
+):
+    try:
+        # Columns from left and right tables
+        x = [
+            "uploaded_name", "uploaded_name_international", "uploaded_address", "uploaded_postcode",
+            "uploaded_city", "uploaded_country", "uploaded_phone_or_fax", "uploaded_email_or_website",
+            "uploaded_national_id", "uploaded_state", "uploaded_address_type"
+        ]
+        y = [
+            "name", "name_international", "address", "postcode", "city", "country", "phone_or_fax",
+            "email_or_website", "national_id", "state"
+        ]
+
+        metadata = Base.metadata
+        left_table = metadata.tables.get(left_table_name)
+        right_table = metadata.tables.get(right_table_name)
+
+        if left_table is None or right_table is None:
+            raise ValueError("One or both table names are invalid.")
+
+        # Alias tables
+        left_alias = aliased(left_table)
+        right_alias = aliased(right_table)
+
+        # Join condition
+        join_condition = and_(
+            left_alias.c.session_id == right_alias.c.session_id,
+            left_alias.c.ens_id == right_alias.c.ens_id,
+        )
+        joined_table = left_alias.join(right_alias, join_condition)
+
+        # Select columns
+        columns_to_select = []
+        column_names = []
+
+        for col in x:
+            columns_to_select.append(left_alias.c[col])
+            column_names.append(f"left.{col}")
+        for col in y:
+            columns_to_select.append(right_alias.c[col])
+            column_names.append(f"right.{col}")
+
+        # Build query
+        query = select(*columns_to_select).select_from(joined_table)
+        query = query.where(left_alias.c.ens_id == str(ens_id))
+        query = query.where(left_alias.c.session_id == str(session_id))
+
+        # Execute query
+        result = await session.execute(query)
+        rows = result.fetchall()
+
+        # Convert to list of dicts
+        output = [dict(zip(column_names, row)) for row in rows]
+        return output
+
+    except Exception as e:
+        raise RuntimeError(f"Failed to fetch data: {e}")
+
+
 async def get_dynamic_ens_data(
     table_name: str,
     required_columns: list,
-    ens_id: str,
-    session_id: str,
+    ens_id: str = None,
+    session_id: str = None,
     session: AsyncSession = Depends(deps.get_session)
 ):
     try:
@@ -39,10 +107,11 @@ async def get_dynamic_ens_data(
 
         query = select(*columns_to_select)
 
+        # Apply filters only if the values are provided
         if ens_id:
             query = query.where(table_class.c.ens_id == str(ens_id)).distinct()
         
-        if session_id:
+        if session_id:  # If session_id is None, do not apply any filter
             query = query.where(table_class.c.session_id == str(session_id))
 
         result = await session.execute(query)
@@ -50,9 +119,55 @@ async def get_dynamic_ens_data(
         columns = result.keys()
         rows = result.all()
 
-        formatted_res = [
-            dict(zip(columns, row)) for row in rows
-        ]
+        formatted_res = [dict(zip(columns, row)) for row in rows]
+
+        await session.close()
+        return formatted_res
+
+    except ValueError as ve:
+        logger.error(f"Error: {ve}")
+        return []
+
+    except SQLAlchemyError as sa_err:
+        logger.error(f"Database error: {sa_err}")
+        return []
+
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
+        return []
+
+
+async def get_main_supplier_bvdid_data(
+    required_columns: list,
+    bvd_id: str = None,
+    session: AsyncSession = Depends(deps.get_session)
+):
+    try:
+        session = SessionFactory()
+        table_class = Base.metadata.tables.get("supplier_master_data")
+        if table_class is None:
+            raise ValueError(
+                f"Table 'supplier_master_data' does not exist in the database schema."
+            )
+
+        # If "*" is passed, select all columns
+        if required_columns == ["all"]:
+            columns_to_select = [table_class.c[column] for column in table_class.c.keys()]
+        else:
+            columns_to_select = [getattr(table_class.c, column) for column in required_columns]
+
+        query = select(*columns_to_select)
+
+        # Apply filters only if the values are provided
+        if bvd_id:
+            query = query.where(table_class.c.bvd_id == str(bvd_id)).distinct()
+
+        result = await session.execute(query)
+
+        columns = result.keys()
+        rows = result.all()
+
+        formatted_res = [dict(zip(columns, row)) for row in rows]
 
         await session.close()
         return formatted_res
@@ -68,6 +183,7 @@ async def get_dynamic_ens_data(
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
         return []
+
 
 
 
@@ -125,17 +241,17 @@ async def update_dynamic_ens_data(
 
     except ValueError as ve:
         # Handle the case where the table does not exist
-        print(f"Error: {ve}")
+        logger.error(f"Error: {ve}")
         return {"error": str(ve), "status": "failure"}
     
     except SQLAlchemyError as sa_err:
         # Handle SQLAlchemy-specific errors
-        print(f"Database error: {sa_err}")
+        logger.error(f"Database error: {sa_err}")
         return {"error": "Database error", "status": "failure"}
     
     except Exception as e:
         # Catch any other exceptions
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         return {"error": "An unexpected error occurred", "status": "failure"}
 
 async def insert_dynamic_ens_data(
@@ -174,17 +290,17 @@ async def insert_dynamic_ens_data(
 
     except ValueError as ve:
         # Handle the case where the table does not exist
-        print(f"Error: {ve}")
+        logger.error(f"Error: {ve}")
         return {"error": str(ve), "status": "failure"}
     
     except SQLAlchemyError as sa_err:
         # Handle SQLAlchemy-specific errors
-        print(f"Database error: {sa_err}")
+        logger.error(f"Database error: {sa_err}")
         return {"error": "Database error", "status": "failure"}
     
     except Exception as e:
         # Catch any other exceptions
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         return {"error": "An unexpected error occurred", "status": "failure"}
 
 async def upsert_dynamic_ens_data(
@@ -224,15 +340,15 @@ async def upsert_dynamic_ens_data(
         return {"status": "success", "message": f"Upserted {len(rows_to_insert)} rows successfully."}
 
     except ValueError as ve:
-        print(f"Error: {ve}")
+        logger.error(f"Error: {ve}")
         return {"error": str(ve), "status": "failure"}
 
     except SQLAlchemyError as sa_err:
-        print(f"Database error: {sa_err}")
+        logger.error(f"Database error: {sa_err}")
         return {"error": "Database error", "status": "failure"}
 
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         return {"error": "An unexpected error occurred", "status": "failure"}
 
 async def upsert_dynamic_ens_data_summary(
@@ -272,15 +388,15 @@ async def upsert_dynamic_ens_data_summary(
         return {"status": "success", "message": f"Upserted {len(rows_to_insert)} rows successfully."}
 
     except ValueError as ve:
-        print(f"Error: {ve}")
+        logger.error(f"Error: {ve}")
         return {"error": str(ve), "status": "failure"}
 
     except SQLAlchemyError as sa_err:
-        print(f"Database error: {sa_err}")
+        logger.error(f"Database error: {sa_err}")
         return {"error": "Database error", "status": "failure"}
 
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         return {"error": "An unexpected error occurred", "status": "failure"}
 
 async def upsert_kpi(
@@ -325,17 +441,17 @@ async def upsert_kpi(
 
     except ValueError as ve:
         # Handle the case where the table does not exist
-        print(f"Error: {ve}")
+        logger.error(f"Error: {ve}")
         return {"error": str(ve), "status": "failure"}
     
     except SQLAlchemyError as sa_err:
         # Handle SQLAlchemy-specific errors
-        print(f"Database error: {sa_err}")
+        logger.error(f"Database error: {sa_err}")
         return {"error": "Database error", "status": "failure"}
     
     except Exception as e:
         # Catch any other exceptions
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         return {"error": "An unexpected error occurred", "status": "failure"}
     
 
@@ -378,17 +494,17 @@ async def upsert_ensid_screening_status(
 
     except ValueError as ve:
         # Handle the case where the table does not exist
-        print(f"Error: {ve}")
+        logger.error(f"Error: {ve}")
         return {"error": str(ve), "status": "failure"}
     
     except SQLAlchemyError as sa_err:
         # Handle SQLAlchemy-specific errors
-        print(f"Database error: {sa_err}")
+        logger.error(f"Database error: {sa_err}")
         return {"error": "Database error", "status": "failure"}
     
     except Exception as e:
         # Catch any other exceptions
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         return {"error": "An unexpected error occurred", "status": "failure"}
     
 
@@ -443,17 +559,17 @@ async def upsert_session_screening_status(
 
     except ValueError as ve:
         # Handle the case where the table does not exist
-        print(f"Error: {ve}")
+        logger.error(f"Error: {ve}")
         return {"error": str(ve), "status": "failure"}
     
     except SQLAlchemyError as sa_err:
         # Handle SQLAlchemy-specific errors
-        print(f"Database error: {sa_err}")
+        logger.error(f"Database error: {sa_err}")
         return {"error": "Database error", "status": "failure"}
     
     except Exception as e:
         # Catch any other exceptions
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         return {"error": "An unexpected error occurred", "status": "failure"}
 
 
@@ -503,17 +619,17 @@ async def get_ensid_screening_status_static(
 
     except ValueError as ve:
         # Handle the case where the table does not exist
-        print(f"Error: {ve}")
+        logger.error(f"Error: {ve}")
         return []
 
     except SQLAlchemyError as sa_err:
         # Handle SQLAlchemy-specific errors
-        print(f"Database error: {sa_err}")
+        logger.error(f"Database error: {sa_err}")
         return []
 
     except Exception as e:
         # Catch any other exceptions
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         return []
 
 
@@ -559,17 +675,17 @@ async def get_session_screening_status_static(
 
     except ValueError as ve:
         # Handle the case where the table does not exist
-        print(f"Error: {ve}")
+        logger.error(f"Error: {ve}")
         return []
 
     except SQLAlchemyError as sa_err:
         # Handle SQLAlchemy-specific errors
-        print(f"Database error: {sa_err}")
+        logger.error(f"Database error: {sa_err}")
         return []
 
     except Exception as e:
         # Catch any other exceptions
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         return []
 
 async def check_and_update_unique_value(
@@ -599,7 +715,7 @@ async def check_and_update_unique_value(
 
             logger.info("----------- BVDID ALREADY EXISTS")
             latest_ens_id = existing_rows[0]
-            logger.info("PRE-EXISTING ENS_ID ----> %s", latest_ens_id)
+            logger.debug("PRE-EXISTING ENS_ID ----> %s", latest_ens_id)
 
             # Step 2: If value exists, update pre_existing_bvdid to 'Yes' for all matching rows
             update_query = (
@@ -634,11 +750,11 @@ async def check_and_update_unique_value(
             return ens_id, {"status": "unique", "message": f"Value '{bvd_id_to_check}' successfully updated."}
 
     except ValueError as ve:
-        print(f"Error: {ve}")
+        logger.error(f"Error: {ve}")
         return ens_id, {"error": str(ve), "status": "failure"}
 
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {str(e)}")
         return ens_id, {"error": "An unexpected error occurred", "status": "failure"}
 
 
@@ -693,18 +809,18 @@ async def get_ens_ids_for_session_id(
 
     except ValueError as ve:
         # Handle the case where the table does not exist
-        print(f"Error: {ve}")
+        logger.error(f"Error: {ve}")
         return []
 
     except SQLAlchemyError as sa_err:
         # Handle SQLAlchemy-specific errors
-        print(f"Database error: {sa_err}")
+        logger.error(f"Database error: {sa_err}")
         return []
 
     except Exception as e:
         # Catch any other exceptions
-        print(str(e))
-        print(f"An unexpected error occurred: {e}")
+        logger.error(str(e))
+        logger.error(f"An unexpected error occurred: {e}")
         return []
 
 async def get_all_ensid_screening_status_static(
@@ -752,17 +868,17 @@ async def get_all_ensid_screening_status_static(
 
     except ValueError as ve:
         # Handle the case where the table does not exist
-        print(f"Error: {ve}")
+        logger.error(f"Error: {ve}")
         return []
 
     except SQLAlchemyError as sa_err:
         # Handle SQLAlchemy-specific errors
-        print(f"Database error: {sa_err}")
+        logger.error(f"Database error: {sa_err}")
         return []
 
     except Exception as e:
         # Catch any other exceptions
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         return []
 
 async def update_for_ensid_svm_duplication(
@@ -811,15 +927,15 @@ async def update_for_ensid_svm_duplication(
 
     except ValueError as ve:
         # Handle the case where the table does not exist
-        print(f"Error: {ve}")
+        logger.error(f"Error: {ve}")
         return []
 
     except SQLAlchemyError as sa_err:
         # Handle SQLAlchemy-specific errors
-        print(f"Database error: {sa_err}")
+        logger.error(f"Database error: {sa_err}")
         return []
 
     except Exception as e:
         # Catch any other exceptions
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         return []

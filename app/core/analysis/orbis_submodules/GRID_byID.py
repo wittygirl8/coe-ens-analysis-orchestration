@@ -27,13 +27,13 @@ async def gridbyid_person(data, session): # THIS DOESNT WORK IN GRID GRID - DONT
         response = requests.request("GET", url, headers=headers, data=data)
 
         # Print the response text
-        logger.info(response.text)
+        logger.debug(response.text)
 
-    logger.warning("Performing Orbis ID Retrieval... Completed")
+    logger.info("Performing Orbis ID Retrieval... Completed")
 
 async def gridbyid_organisation(data, session): #TODO
 
-    logger.warning("Retrieving GRID by Company BVD ID Analysis")
+    logger.info("Retrieving GRID by Company BVD ID Analysis")
 
     ens_id = data["ens_id"]
     session_id = data["session_id"]
@@ -53,7 +53,8 @@ async def gridbyid_organisation(data, session): #TODO
     data = {}
     try:
         response = requests.request("GET", url, headers=headers, data=data)
-        if response.status_code != 200:
+        if (response.status_code != 200) and (response.status_code != 201):
+            logger.error(f"ERROR FOR gridbyid_organisation: {response.status_code}, {response.text}")
             return {"module": "Orbis Grid Search", "status": "failed", "success": False, "data": False, "adv_count": 0}
         response_json = response.json()
         adv_count = response_json.get("adv_count", 0)
@@ -68,7 +69,8 @@ async def gridbyid_organisation(data, session): #TODO
             else:
                 data = False
 
-        logger.warning("Performing Orbis GRID for Company ... Completed")
+        logger.info("Performing Orbis GRID for Company ... Completed")
         return {"module": "Orbis Grid Search", "status": "completed", "success": success, "data": data, "adv_count": adv_count}
-    except:
+    except Exception as e:
+        logger.error(f"ERROR FOR DATA ORBIS COMPANY: {str(e)}")
         return {"module": "data_orbis_company", "status": "failed"}

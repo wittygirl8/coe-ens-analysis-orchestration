@@ -6,6 +6,7 @@ from app.core.analysis.analysis import *
 from app.core.utils.db_utils import *
 from app.models import *
 import traceback
+from app.schemas.logger import logger
 
 router = APIRouter()
 
@@ -274,106 +275,26 @@ async def generate_report(request: AnalysisRequestSingle, session: AsyncSession 
         tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
         
         # Log or print the traceback for debugging
-        print(tb_str)  # You can replace this with logging (e.g., logger.error(tb_str))
+        logger.error(tb_str)  # You can replace this with logging (e.g., logger.error(tb_str))
 
         raise HTTPException(status_code=500, detail=f"Error running analysis: {str(tb_str)}")
+    
+@router.post(
+    "/graph-default-graph", 
+    description="Generate a default graph with all data"
+)
+async def generate_default_graph(session: AsyncSession = Depends(deps.get_session)):
+    try:
+        
+        response = await get_default_graph(session)
+        analysis_result = AnalysisResult(
+            module="Graph",
+            status="Completed",
+            result=response
+        )
+        return AnalysisResponse(results=analysis_result)
 
-# @router.get("/dummy-table")
-# async def get_dummy_table_data(session: AsyncSession = Depends(deps.get_session)):
-#     try:
-#         # table_name= 'kpi_master_data'
-#         # required_columns= ['id','ens_id']
-#         # ens_id= 'ENS12345'
-#         # # Call the function to get data dynamically from the table
-#         # res = await get_dynamic_ens_data(table_name, required_columns, ens_id, session)
-
-#         # kpi_data = {
-#         #     "kpi_area": "+44",
-#         #     "kpi_code": "ESG1CGSDFSXC"
-#         # }
-
-#         # ens_id = "ENS12345"
-#         # table_name = "kpi_master_data"
-
-#         # # Call the function
-#         # res = await update_dynamic_ens_data(table_name, kpi_data, ens_id, session)
-
-#         # kpi_data = [
-#         #     {"kpi_area": "ESG", "kpi_code": "ESG1C", "kpi_flag": False, "kpi_value": '10.5', "kpi_details": "Initial details"},
-#         #     {"kpi_area": "Sustainability", "kpi_code": "SUST1B", "kpi_flag": True, "kpi_value": '20.8', "kpi_details": "Secondary details"}
-#         # ]
-#         # ens_id = "ENS12345"
-#         # session_id = "SESSION67890"
-#         # table_name = "kpi_master_data"
-
-#         # # Call the function
-#         # res = await insert_dynamic_ens_data(table_name, kpi_data, ens_id, session_id, session)
-
-#         # kpi_data = [{
-#         #     "kpi_area": "+41",
-#         #     "kpi_value": "56765",
-#         #     "kpi_code": "ESG1CGSDFSXC"
-#         # },
-#         # {
-#         #     "kpi_area": "+42",
-#         #     "kpi_value": "_",
-#         #     "kpi_code": "ESG1CGbghceSDFSXC"
-#         # }]
-
-#         # ens_id = "ENS12345"
-#         # table_name = "cyes"
-#         # session_id = "7yer837r3876548974978s"
-
-#         # # Call the function
-#         # res = await upsert_kpi(table_name, kpi_data, ens_id, session_id,session)
-
-#         # kpi_data = [{
-#         #     "overall_status": STATUS.COMPLETED,
-#         #     "orbis_retrieval_status": STATUS.IN_PROGRESS,
-#         #     "ens_id": "6768"
-#         # },
-#         # {
-#         #     "overall_status": STATUS.COMPLETED,
-#         #     "orbis_retrieval_status": STATUS.COMPLETED,
-#         #     "ens_id": "jghgj"
-#         # },
-#         # {
-#         #     "overall_status": STATUS.COMPLETED,
-#         #     "orbis_retrieval_status": STATUS.IN_PROGRESS,
-#         #     "ens_id": "8687"
-#         # }]
-
-#         # table_name = "ensid_screening_status"
-#         # session_id = "7yer837r3876548974978s"
-
-#         # # Call the function
-#         # res = await upsert_ensid_screening_status( kpi_data, session_id,session)
-
-#         kpi_data = [{
-#             "overall_status": STATUS.COMPLETED,
-#             "list_upload_status": STATUS.IN_PROGRESS
-#         }]
-
-#         table_name = "ensid_screening_status"
-#         session_id = "7yer837r3876548974978s"
-
-#         # Call the function
-#         res = await upsert_session_screening_status( kpi_data, session_id,session)
-
-#         print("res___", res)
-#         return res
-
-#     except ValueError as ve:
-#         # Handle the case where the table does not exist or other value errors
-#         print(f"Error: {ve}")
-#         return {"error": str(ve), "data": []}
-
-#     except SQLAlchemyError as sa_err:
-#         # Handle SQLAlchemy-specific errors
-#         print(f"Database error: {sa_err}")
-#         return {"error": "Database error", "data": []}
-
-#     except Exception as e:
-#         # Catch any other exceptions
-#         print(f"An unexpected error occurred: {e}")
-#         return {"error": "An unexpected error occurred", "data": []}
+    except Exception as e:
+        tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+        logger.info(tb_str)  
+        raise HTTPException(status_code=500, detail=f"Error generating default graph: {str(tb_str)}")

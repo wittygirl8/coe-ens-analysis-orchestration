@@ -9,11 +9,8 @@ from app.api import api_messages
 from app.core import database_session
 from app.core.security.jwt import verify_jwt_token
 from app.models import User, Base
-import logging
+from app.schemas.logger import logger
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Accept Bearer Token directly in headers
 api_key_header = APIKeyHeader(name="Authorization", auto_error=False)

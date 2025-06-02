@@ -136,12 +136,13 @@ async def get_sessionid_status_poll(
 
         initial_state = await get_session_screening_status_static(session_id, db_session)
 
-        logger.info(initial_state)
+        logger.debug(initial_state)
 
         return {"status": "", "data": initial_state[0], "message": ""}
 
     except Exception as e:
         # Handle errors gracefully
+        logger.error(f"get_sessionid_status_poll --> {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error running analysis: {str(e)}")
 
 @router.get(
@@ -164,10 +165,11 @@ async def get_sessionid_status_poll(
 
         initial_state = await get_ensid_screening_status_static(ens_id_list, session_id, db_session)
 
-        logger.info(initial_state)
+        logger.debug(initial_state)
 
         return {"status": "", "data": initial_state[0], "message": ""}
 
     except Exception as e:
         # Handle errors gracefully
+        logger.error(f"poll-ensid-status --> {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error running analysis: {str(e)}")

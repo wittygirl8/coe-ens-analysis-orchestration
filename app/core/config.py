@@ -54,6 +54,11 @@ class Urls(BaseModel):
     news_backend: str
     news_scraper: str
 
+class GraphDb(BaseModel):
+    uri: str
+    user: str
+    password: str
+
 
 class Settings(BaseSettings):
     security: Security
@@ -63,6 +68,7 @@ class Settings(BaseSettings):
     openai: OpenAIConfig
     scraper: ScraperConfig
     urls: Urls
+    graphdb: GraphDb
 
     @computed_field  # type: ignore[prop-decorator]
     @property

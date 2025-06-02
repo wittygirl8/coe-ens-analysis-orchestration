@@ -37,7 +37,7 @@ def aggregate_verified_flag(data):
         # Ensure the required keys exist in all dictionaries
         required_keys = {"country", "company", "verified"}
         if not all(required_keys.issubset(item.keys()) for item in data):
-            logger.warning("error2")
+            logger.error("Each dictionary must contain the keys")
             raise KeyError(f"Each dictionary must contain the keys: {required_keys}")
 
         # Aggregate country and company (assuming they are consistent across the list)
@@ -103,7 +103,7 @@ def filter_supplier_data(json_data, national_id, max_results:int):
             temp = selected_matches[0]
             for match in selected_matches:
                 if str(match.get('MATCH', {}).get('0', {}).get('NATIONAL_ID', 'N/A')) == national_id:
-                    logger.info("THIS FINDING MATCHES THE UPLOADED NATIONAL ID -------------")
+                    logger.debug("THIS FINDING MATCHES THE UPLOADED NATIONAL ID -------------")
                     temp = match
                     break
             selected_final_match = temp
@@ -123,7 +123,7 @@ def filter_supplier_data(json_data, national_id, max_results:int):
             temp = max(sorted_potential_matches, key=lambda x: x['MATCH']['0'].get('SCORE', 0))
             for match in sorted_potential_matches:
                 if str(match.get('MATCH', {}).get('0', {}).get('NATIONAL_ID', 'N/A')) == national_id:
-                    logger.info("THIS FINDING MATCHES THE UPLOADED NATIONAL ID -------------")
+                    logger.debug("THIS FINDING MATCHES THE UPLOADED NATIONAL ID -------------")
                     temp = match
                     potential_pass = False
                     matched = True
@@ -142,8 +142,8 @@ def filter_supplier_data(json_data, national_id, max_results:int):
             sorted_low_scoring_matches = sorted(low_scoring_matches, key=lambda x: x['MATCH']['0']['SCORE'],reverse=True)
             temp = max(sorted_low_scoring_matches, key=lambda x: x['MATCH']['0'].get('SCORE', 0))
             for match in sorted_low_scoring_matches:
-                logger.info("IN LOW SCORING MATCHES")
-                logger.info(match)
+                logger.warning("IN LOW SCORING MATCHES")
+                logger.debug(match)
                 if str(match.get('MATCH', {}).get('0', {}).get('NATIONAL_ID', 'N/A')) == national_id:
                     logger.info("THIS FINDING MATCHES THE UPLOADED NATIONAL ID -------------")
                     temp = match
@@ -161,7 +161,7 @@ def filter_supplier_data(json_data, national_id, max_results:int):
             potential_pass = True
             for match in supplier_data:
                 if str(match.get('MATCH', {}).get('0', {}).get('NATIONAL_ID', 'N/A')) == national_id:
-                    logger.info("THIS FINDING MATCHES THE UPLOADED NATIONAL ID -------------")
+                    logger.debug("THIS FINDING MATCHES THE UPLOADED NATIONAL ID -------------")
                     any_match = match
                     potential_pass = False
                     matched = True

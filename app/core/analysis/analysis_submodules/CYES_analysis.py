@@ -4,7 +4,7 @@ from app.schemas.logger import logger
 
 async def esg_analysis(data, session):
 
-    logger.warning("Performing ESG Analysis...")
+    logger.info("Performing ESG Analysis...")
 
     kpi_area_module = "ESG"
 
@@ -146,13 +146,13 @@ async def esg_analysis(data, session):
 
         esg_kpis = [ESG1A, ESG2A, ESG2B, ESG2C]
 
-        logger.warning(f"Completed processing {len(esg_kpis)} kpis")
+        logger.debug(f"Completed processing {len(esg_kpis)} kpis")
 
         # TBD: Do we insert blank KPIs as well - currently using
         insert_status = await upsert_kpi("cyes", esg_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             logger.error(insert_status)
@@ -164,7 +164,7 @@ async def esg_analysis(data, session):
 
 async def cyber_analysis(data, session):
 
-    logger.warning("Performing Cyber Risk Analysis...")
+    logger.info("Performing Cyber Risk Analysis...")
     kpi_area_module = "CYB"
 
     ens_id_value = data.get("ens_id")
@@ -309,13 +309,13 @@ async def cyber_analysis(data, session):
                 CYB2A["kpi_details"] = "No Final Cyber Risk Rating Available"
 
         cyber_kpis = [CYB1A, CYB1B, CYB2A]
-        logger.warning(f"Completed processing {len(cyber_kpis)} kpis")
+        logger.debug(f"Completed processing {len(cyber_kpis)} kpis")
 
         # Insert KPI into the database
         insert_status = await upsert_kpi("cyes", cyber_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             logger.error(insert_status)
@@ -328,7 +328,7 @@ async def cyber_analysis(data, session):
 
 async def website_analysis(data, session):
 
-    logger.warning("Performing Website Analysis...")
+    logger.info("Performing Website Analysis...")
     kpi_area_module = "WEB"
 
     ens_id_value = data.get("ens_id")
@@ -370,13 +370,13 @@ async def website_analysis(data, session):
             WEB1A["kpi_rating"] = "Low"
             WEB1A["kpi_details"] = "Website found for the organization"
         web_kpis = [WEB1A]
-        logger.warning(f"Completed processing {len(web_kpis)} kpis")
+        logger.debug(f"Completed processing {len(web_kpis)} kpis")
 
         # Insert KPI into the database
         insert_status = await upsert_kpi("cyes", web_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             logger.error(insert_status)

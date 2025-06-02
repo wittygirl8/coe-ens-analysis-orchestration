@@ -5,7 +5,7 @@ import datetime
 from app.schemas.logger import logger
 async def sown_analysis(data, session):
 
-    logger.warning("Performing State Ownership Structure Analysis... Started")
+    logger.info("Performing State Ownership Structure Analysis... Started")
 
     kpi_area_module = "SCO"
 
@@ -32,14 +32,16 @@ async def sown_analysis(data, session):
         required_columns = ["shareholders", "global_ultimate_owner", "global_ultimate_owner_type"]
         retrieved_data = await get_dynamic_ens_data("external_supplier_data", required_columns, ens_id_value, session_id_value, session)
         retrieved_data = retrieved_data[0]
-        logger.warning(f"retrieved data: {retrieved_data}")
+        logger.debug(f"retrieved data: {retrieved_data}")
 
         shareholders = retrieved_data.get("shareholders", None)
         global_ultimate_owner = retrieved_data.get("global_ultimate_owner", None)
         global_ultimate_owner_type = retrieved_data.get("global_ultimate_owner_type", None)
 
         # ---- PERFORM ANALYSIS LOGIC HERE
-        if "state" in global_ultimate_owner_type:  # TODO INSERT LOGIC
+        if isinstance(global_ultimate_owner_type, list):
+            global_ultimate_owner_type = ", ".join(global_ultimate_owner_type)
+        if global_ultimate_owner_type and any("state" in str(item).lower() for item in global_ultimate_owner_type):  # TODO INSERT LOGIC
             SCO1A["kpi_flag"] = True
             SCO1A["kpi_value"] = json.dumps(global_ultimate_owner_type)
             SCO1A["kpi_rating"] = "High"
@@ -54,7 +56,7 @@ async def sown_analysis(data, session):
         insert_status = await upsert_kpi("sown", sco_kpis, ens_id_value, session_id_value, session) # --- SHOULD WE CHANGE THIS TO BE PART OF PEP
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             logger.error(insert_status)
@@ -66,7 +68,7 @@ async def sown_analysis(data, session):
 
 async def pep_analysis(data, session):
 
-    logger.warning("Performing PEP Analysis...")
+    logger.info("Performing PEP Analysis...")
 
     kpi_area_module = "PEP"
 
@@ -106,25 +108,29 @@ async def pep_analysis(data, session):
 
         required_columns = ["event_pep", "grid_event_pep", "management"]
         retrieved_data = await get_dynamic_ens_data("external_supplier_data", required_columns, ens_id_value, session_id_value, session)
+        if not retrieved_data or not isinstance(retrieved_data, list):
+            logger.error(f"No data retrieved for external_supplier_data: {retrieved_data}")
+            return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": "no_data"}
         retrieved_data = retrieved_data[0]
-        pep_management_list = [x for x in retrieved_data.get("management", []) if x.get("pep_indicator").lower() == 'yes']
+        management_data = retrieved_data.get("management") or []  # This handles None values
+        pep_management_list = [x for x in management_data if x.get("pep_indicator") and x.get("pep_indicator").lower() == 'yes']
         event_pep = retrieved_data.get("event_pep", [])
         grid_event_pep = retrieved_data.get("grid_event_pep", [])
 
         # Data for Person-Level
         required_columns = ["grid_pep"]
         retrieved_data = await get_dynamic_ens_data("grid_management", required_columns, ens_id_value, session_id_value, session)
-        person_retrieved_data = retrieved_data  # Multiple rows/people per ens_id and session_id
+        person_retrieved_data = retrieved_data if retrieved_data is not None else []  # Multiple rows/people per ens_id and session_id
 
         # Check if all person data is blank
-        person_info_none = all(person.get("grid_pep", None) is None for person in person_retrieved_data)
+        person_info_none = all(person.get("grid_pep", None) is None for person in person_retrieved_data) if person_retrieved_data else True
 
         if person_info_none and (event_pep is None) and (grid_event_pep is None) and (len(pep_management_list)==0):
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "no_data"}
 
 
         # ---------------------- PEP1A, 2A: Direct and Indirect for Org Level from table "external_supplier_data"
-        pep_data = (event_pep or []) + (grid_event_pep or []) # TODO: ANOTHER WAY TO COMBINE THIS INFO IF IT OVERLAPS
+        pep_data = list(event_pep or []) + list(grid_event_pep or []) # TODO: ANOTHER WAY TO COMBINE THIS INFO IF IT OVERLAPS
         pep_data = sorted(pep_data, key=lambda x: x.get("eventDate", ""), reverse=True)
         unique_pep_data=set()
         if len(pep_data) > 0:
@@ -225,7 +231,7 @@ async def pep_analysis(data, session):
 
             pep_kpis.append(PEP2A)
 
-        logger.info("# ------------------------------------------------------------ # PERSONS")
+        logger.debug("# ------------------------------------------------------------ # PERSONS")
         # ---------------------- PEP1B, 2B: Direct and Indirect for PERSON Level from table "grid_management"
         all_person_pep_events = []
         unique_pep_entity_name = set()
@@ -236,7 +242,7 @@ async def pep_analysis(data, session):
                 pep_events = person.get("grid_pep",[])
                 if pep_events is not None:
                     all_person_pep_events = all_person_pep_events + pep_events
-
+                logger.debug(f"Type of pep_events: {type(pep_events)}, value: {pep_events}")
             current_year = datetime.datetime.now().year
             indirect_eventCategory = [""]
             details_direct = details_indirect = "Following PeP or Association with State Owned Companies findings :\n"
@@ -356,12 +362,12 @@ async def pep_analysis(data, session):
 
         # ---------------------------------
 
-        logger.info(f"FOUND {len(pep_kpis)} KPIS IN TOTAL -------------------")
+        logger.debug(f"FOUND {len(pep_kpis)} KPIS IN TOTAL -------------------")
         # Insert results into the database
         insert_status = await upsert_kpi("sown", pep_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure","info": "database_saving_error"}

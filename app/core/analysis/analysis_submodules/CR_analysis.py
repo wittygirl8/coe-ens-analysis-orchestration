@@ -8,7 +8,7 @@ async def country_risk_analysis(data, session):
 
     module_activation = False
 
-    logger.warning("Performing Country Risk Analysis... Started")
+    logger.info("Performing Country Risk Analysis... Started")
 
     kpi_area_module = "CR"
 
@@ -89,7 +89,7 @@ async def country_risk_analysis(data, session):
         insert_status = await upsert_kpi("sown",cr_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             logger.error(insert_status)

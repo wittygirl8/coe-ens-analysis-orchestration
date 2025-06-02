@@ -5,7 +5,7 @@ import re
 from app.schemas.logger import logger
 
 async def company_profile(data, session):
-    logger.warning("Performing Company Profile...")
+    logger.info("Performing Company Profile...")
 
     ens_id = data.get("ens_id")
     session_id = data.get("session_id")
@@ -16,8 +16,7 @@ async def company_profile(data, session):
     retrieved_data = await get_dynamic_ens_data("external_supplier_data", required_columns, ens_id,
                                                 session_id, session)
     retrieved_data = retrieved_data[0]
-    logger.warning(f"retrieved data: {retrieved_data}")
-    logger.warning("Processing retrieved company data...")
+    logger.debug("Processing retrieved company data...")
 
     supplier_master_data = await get_dynamic_ens_data("supplier_master_data", ["national_id"], ens_id,
                                                       session_id, session)
@@ -25,6 +24,7 @@ async def company_profile(data, session):
 
     def format_alias(items):
         if isinstance(items, list):
+            items = list({i for i in items if i is not None})
             items = list(set(items))[:7]
             return "\n\n".join(items)
         return items
@@ -164,12 +164,12 @@ async def company_profile(data, session):
         "key_executives": management_names(retrieved_data.get("management")),
         "employee": f"{retrieved_data.get('no_of_employee')} employees" if retrieved_data.get("no_of_employee") else None
     }
-    logger.info(json.dumps(company_data, indent=2))
+    logger.debug(json.dumps(company_data, indent=2))
     columns_data = [company_data]
     result = await upsert_dynamic_ens_data("company_profile", columns_data, ens_id, session_id, session)
 
     if result.get("status") == "success":
-        logger.warning("Company profile saved successfully.")
+        logger.info("Company profile saved successfully.")
     else:
         logger.error(f"Error saving company profile: {result.get('error')}")
 

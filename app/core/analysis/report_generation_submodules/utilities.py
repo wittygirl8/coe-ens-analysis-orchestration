@@ -88,4 +88,4 @@ def clear_output_folder(output_folder):
 
         logger.info("Output folder cleared: All files removed.")
     else:
-        logger.info("Output folder does not exist. Nothing to clear.")
+        logger.warning("Output folder does not exist. Nothing to clear.")

@@ -6,7 +6,7 @@ from app.schemas.logger import logger
 
 async def orbis_company(data, session):
 
-    logger.warning("Retrieving Orbis - Company Data..")
+    logger.info("Retrieving Orbis - Company Data..")
 
     # Define the query parameters as variables
     session_id = data["session_id"]
@@ -29,13 +29,12 @@ async def orbis_company(data, session):
         response = requests.request("GET", url, headers=headers, data=payload)
         logger.debug(f"Company Data status code: {response.status_code}")
 
-        logger.warning("Performing Orbis Company Retrieval... Completed")
-        if response.status_code == 200:
-            print("in if")
+        if (response.status_code == 200) or (response.status_code == 201):
+            logger.info("Performing Orbis Company Retrieval... Completed")
             return {"module": "data_orbis_company", "status": "completed"}
         else:
-            print("in else")
+            logger.error("Performing Orbis Company Retrieval... Failed")
             return {"module": "data_orbis_company", "status": "failed"}
-    except:
-        logger.warning("in else")
+    except Exception as e:
+        logger.error(f"Performing Orbis Company Retrieval... Failed: {str(e)}")
         return {"module": "data_orbis_company", "status": "failed"}

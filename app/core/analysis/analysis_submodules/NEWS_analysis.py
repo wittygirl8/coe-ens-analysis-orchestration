@@ -9,6 +9,9 @@ from app.core.config import get_settings
 import requests
 from datetime import datetime
 from app.schemas.logger import logger
+import random
+import httpx
+
 
 async def newsscreening_main_company(data, session):
     logger.warning("Performing News Analysis...")
@@ -49,13 +52,16 @@ async def newsscreening_main_company(data, session):
     }
 
     total_news = 0
-    current_year = 2025
-    min_year = 2020
+    current_year = datetime.now().year
+    min_year = current_year-5
     news_data = []
     response=[]
     while total_news < 5 and current_year >= min_year:
         start_date = f"{current_year}-01-01"
-        end_date = f"{current_year}-12-31"
+        if current_year == datetime.now().year:
+            end_date = datetime.now().strftime("%Y-%m-%d")
+        else:
+            end_date = f"{current_year}-12-31"
 
         data = {
             "name": name,
@@ -75,7 +81,7 @@ async def newsscreening_main_company(data, session):
                 year_news = response.json().get("data", [])
                 logger.info(f"Found {len(year_news)} news articles for {current_year}")
                 if isinstance(year_news, list):
-                    logger.info("data is a list")
+                    logger.debug("data is a list")
                     if len(year_news)>0:
                         valid_or_not = year_news[0].get("link", 'N/A')
                     else:
@@ -83,7 +89,7 @@ async def newsscreening_main_company(data, session):
                 else:
                     valid_or_not = 'N/A'
                 if valid_or_not == 'N/A':
-                    logger.info("link is not present skipping")
+                    logger.debug("link is not present skipping")
                     current_year -= 1
                     continue
                 news_data.extend(year_news)
@@ -148,25 +154,183 @@ async def newsscreening_main_company(data, session):
                 continue
 
     kpi_list = [NWS1A]
-    logger.info(f"kpi_list: {kpi_list}")
+    logger.debug(f"kpi_list: {kpi_list}")
 
     insert_status = await upsert_kpi("news", kpi_list, ens_id, session_id, session)
 
     columns_data = [{
         "sentiment_aggregation": response.json().get("sentiment-data-agg", [])
     }]
-    logger.info(columns_data)
+    logger.debug(columns_data)
 
     await insert_dynamic_ens_data("report_plot", columns_data, ens_id, session_id, session)
 
-    logger.info("Stored in the database")
-    logger.warning("Performing News Screening Analysis for Company... Completed")
+    logger.debug("Stored in the database")
+    logger.info("Performing News Screening Analysis for Company... Completed")
+
+    return {"ens_id": ens_id, "module": "NEWS", "status": "completed"}
+async def newsscreening_main_company_throttle(data, session):
+    logger.info("Performing News Analysis...")
+    kpi_area_module = "NWS"
+
+    kpi_template = {
+        "kpi_area": kpi_area_module,
+        "kpi_code": "",
+        "kpi_definition": "",
+        "kpi_flag": False,
+        "kpi_value": None,
+        "kpi_rating": "",
+        "kpi_details": ""
+    }
+
+    NWS1A = kpi_template.copy()
+    NWS1A["kpi_code"] = "NWS1A"
+    NWS1A["kpi_definition"] = "Adverse Media - Additional Screening"
+
+    ens_id = data.get("ens_id")
+    session_id = data.get("session_id")
+
+    required_columns = ["name", "country"]
+    retrieved_data = await get_dynamic_ens_data("external_supplier_data", required_columns, ens_id, session_id, session)
+    retrieved_data = retrieved_data[0]
+
+    name = retrieved_data.get("name")
+    country = retrieved_data.get("country")
+    logger.debug("checkpoint 1")
+
+    news_url = get_settings().urls.news_backend
+    url = f"{news_url}/items/news_ens_data_throttle"
+    logger.debug(f"url: {url}")
+
+    headers = {
+        "accept": "application/json",
+        "Content-Type": "application/json"
+    }
+
+    total_news = 0
+    current_year = 2025
+    min_year = 2020
+    news_data = []
+    response = None
+
+    async with httpx.AsyncClient(
+            timeout=httpx.Timeout(600.0, connect=600.0),
+            limits=httpx.Limits(max_connections=1)
+    ) as client:
+        while total_news < 5 and current_year >= min_year:
+            start_date = f"{current_year}-01-01"
+            end_date = f"{current_year}-12-31"
+
+            data = {
+                "name": name,
+                "flag": "Entity",
+                "company": "",
+                "domain": [""],
+                "start_date": start_date,
+                "end_date": end_date,
+                "country": country,
+                "request_type": "bulk"
+            }
+
+            try:
+                response = await client.post(url, headers=headers, json=data)
+                logger.info(f"Checking news for year {current_year}...")
+
+                if response.status_code == 200:
+                    year_news = response.json().get("data", [])
+                    logger.info(f"Found {len(year_news)} news articles for {current_year}")
+                    if isinstance(year_news, list):
+                        logger.debug("data is a list")
+                        if len(year_news) > 0:
+                            valid_or_not = year_news[0].get("link", 'N/A')
+                        else:
+                            valid_or_not = 'N/A'
+                    else:
+                        valid_or_not = 'N/A'
+
+                    if valid_or_not == 'N/A':
+                        logger.debug("link is not present skipping")
+                        current_year -= 1
+                        continue
+
+                    news_data.extend(year_news)
+                    total_news += len(year_news)
+
+                    if total_news >= 5:
+                        break
+                else:
+                    logger.error(f"Error fetching news for {current_year}: {response.status_code}")
+
+            except httpx.RequestError as e:
+                logger.error(f"HTTP request failed for {current_year}: {e}")
+
+            current_year -= 1  # Move to the previous year
+
+    logger.debug(f"Total news collected: {total_news}")
+
+    if not news_data:
+        logger.info("No relevant news found.")
+        return {"ens_id": ens_id, "module": "NEWS", "status": "completed"}
+
+    # Process the collected news
+    NWS1A["kpi_details"] = "Following Additional Screening:\n"
+    NWS1A["kpi_value"] = ''
+
+    current_year = datetime.now().year
+
+    for i, record in enumerate(news_data):
+        sentiment = record.get("sentiment", "").lower()
+        news_date = record.get("date", "")
+        category = record.get("category", "").strip().lower()
+        summary = record.get("summary", "").strip()
+        title = record.get("title", "").strip()
+        link = record.get("link", "").strip()
+
+        if sentiment == "negative" and news_date:
+            try:
+                news_date_obj = datetime.strptime(news_date, "%Y-%m-%d")
+                news_time_period = current_year - news_date_obj.year
+
+                if news_time_period <= 5:
+                    category_map = {
+                        "general": "Adverse Media finding",
+                        "adverse media - business ethics / reputational risk / code of conduct": "Adverse Media - Other Reputational Risk",
+                        "bribery / corruption / fraud": "Bribery, Fraud or Corruption",
+                        "regulatory": "Regulation",
+                        "adverse media - other criminal activity": "Adverse Media - Other Criminal Activities"
+                    }
+
+                    cat = category_map.get(category, None)
+                    if not cat:
+                        continue
+
+                    NWS1A["kpi_flag"] = True
+                    NWS1A["kpi_value"] += f"; {title}"
+                    NWS1A["kpi_rating"] = "High"
+                    NWS1A["kpi_details"] += f"{i + 1}. {cat}: {title} - {summary}\n Source: {link} (Date: {news_date_obj})\n"
+
+            except ValueError:
+                continue
+
+    kpi_list = [NWS1A]
+    logger.debug(f"kpi_list: {kpi_list}")
+
+    insert_status = await upsert_kpi("news", kpi_list, ens_id, session_id, session)
+
+    columns_data = [{
+        "sentiment_aggregation": response.json().get("sentiment-data-agg", [])
+    }]
+    logger.debug(columns_data)
+
+    await insert_dynamic_ens_data("report_plot", columns_data, ens_id, session_id, session)
+
+    logger.debug("Stored in the database")
+    logger.info("Performing News Screening Analysis for Company... Completed")
 
     return {"ens_id": ens_id, "module": "NEWS", "status": "completed"}
 
-
 async def orbis_news_analysis(data, session):
-    logger.warning("Performing Adverse Media Analysis - ONF...")
+    logger.info("Performing Adverse Media Analysis - ONF...")
 
     kpi_area_module = "ONF"
 
@@ -194,7 +358,7 @@ async def orbis_news_analysis(data, session):
         required_columns = ["orbis_news"]
         retrieved_data = await get_dynamic_ens_data("external_supplier_data", required_columns, ens_id_value, session_id_value, session)
         retrieved_data = retrieved_data[0]
-        logger.info(f"no of data: {len(retrieved_data)}")
+        logger.debug(f"no of data: {len(retrieved_data)}")
         onf = retrieved_data.get("orbis_news", None)
 
 
@@ -248,12 +412,12 @@ async def orbis_news_analysis(data, session):
             ONF1A["kpi_details"] = onf_events_detail
 
             onf_kpis.append(ONF1A)
-            logger.info(f"onf_kpi: {ONF1A}")
+            logger.debug(f"onf_kpi: {ONF1A}")
 
         insert_status = await upsert_kpi("news", onf_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             logger.error(insert_status)

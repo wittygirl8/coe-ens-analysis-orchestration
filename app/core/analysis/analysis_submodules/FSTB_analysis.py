@@ -214,7 +214,7 @@ async def financial_ratios_analysis(data, session):
     Returns:
         dict: Analysis results with KPI information
     """
-    logger.warning("Performing Financial Ratios Analysis.... Started")
+    logger.info("Performing Financial Ratios Analysis.... Started")
 
     kpi_area_module = "BKR"
 
@@ -372,7 +372,7 @@ async def financial_ratios_analysis(data, session):
         insert_status = await upsert_kpi("fstb", financial_ratio_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning("Financial Ratios Analysis... Completed Successfully")
+            logger.info("Financial Ratios Analysis... Completed Successfully")
             return {
                 "ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed",
                 "kpis": financial_ratio_kpis
@@ -400,7 +400,7 @@ async def main_financial_analysis(data, session):
     Returns:
         dict: Analysis results
     """
-    logger.warning("Running Conditional Financial Analysis")
+    logger.info("Running Conditional Financial Analysis")
 
     try:
         financial_ratios_result = await financial_ratios_analysis(data, session)
@@ -418,7 +418,7 @@ async def main_financial_analysis(data, session):
             required_column = ["all"]
             updated_kpis = await get_dynamic_ens_data("fstb", required_column, ens_id_value, session_id_value, session)
 
-            logger.warning(f"Financials Analysis Result: {financials_result}")
+            logger.debug(f"Financials Analysis Result: {financials_result}")
 
             logger.info("Financial Main completed")
             return {
@@ -442,7 +442,7 @@ async def main_financial_analysis(data, session):
         }
 
 async def financials_analysis(data, session):
-    logger.warning("Performing FINANCIALS Analysis... Started")
+    logger.info("Performing FINANCIALS Analysis... Started")
 
     kpi_area_module = "FIN"
     ens_id_value = data.get("ens_id")
@@ -487,7 +487,7 @@ async def financials_analysis(data, session):
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "no_data"}
 
         fin_kpis = []
-
+        ratios = ['roce_before_tax', 'roe_before_tax', 'roe_using_net_income', 'profit_margin', 'current_ratio', 'solvency_ratio']
         # Dynamically generate KPI entries
         for idx, col in enumerate(required_columns, start=1):
             metric_data = retrieved_data.get(col)
@@ -495,16 +495,22 @@ async def financials_analysis(data, session):
                 kpi_entry = kpi_template.copy()
                 kpi_entry["kpi_code"] = f"FIN{idx}A"
                 kpi_entry["kpi_rating"] = "INFO"
-                kpi_entry["kpi_definition"] = f"{col.replace('_', ' ').title()} - Recent Years (USD)"
+                kpi_entry["kpi_definition"] = f"{col.replace('_', ' ').title()} - Recent Years (%)" if col.title().lower() in ratios else f"{col.replace('_', ' ').title()} - Recent Years (USD)"
                 kpi_entry["kpi_value"] = json.dumps(metric_data)
 
                 formatted_metric_data = []
                 for val in metric_data:
-                    formatted_value = format_num(val.get("value"))
-                    formatted_metric_data.append({
-                        "closing_date": val.get("closing_date"),
-                        "value": formatted_value
-                    })
+                    if col.title().lower() in ratios:
+                        formatted_metric_data.append({
+                            "closing_date": val.get("closing_date"),
+                            "value": val.get("value")
+                        })
+                    else:
+                        formatted_value = format_num(val.get("value"))
+                        formatted_metric_data.append({
+                            "closing_date": val.get("closing_date"),
+                            "value": formatted_value
+                        })
 
                 kpi_entry["kpi_value"] = json.dumps(formatted_metric_data)
                 details = "".join(f"[{val['closing_date']}]: {val['value']}\n" for val in formatted_metric_data)
@@ -515,7 +521,7 @@ async def financials_analysis(data, session):
         insert_status = await upsert_kpi("fstb", fin_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             logger.error(insert_status)
@@ -526,7 +532,7 @@ async def financials_analysis(data, session):
         return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure", "info": str(e)}
 
 async def default_events_analysis(data, session):
-    logger.warning("Performing DEFAULT EVENTS Analysis... Started")
+    logger.info("Performing DEFAULT EVENTS Analysis... Started")
 
     kpi_area_module = "BKR"
     ens_id_value = data.get("ens_id")
@@ -549,13 +555,13 @@ async def default_events_analysis(data, session):
 
         default_events = retrieved_data.get("default_events")
         if not default_events:
-            logger.warning(f"{kpi_area_module} Analysis... Completed With No Data")
+            logger.info(f"{kpi_area_module} Analysis... Completed With No Data")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "no_data"}
 
         relevant_events = [event for event in default_events if "Default" in event.get("LEGAL_EVENTS_TYPES_VALUE", [])][:5]
 
         if not relevant_events:
-            logger.warning(f"{kpi_area_module} Analysis... Completed With No Relevant Data")
+            logger.info(f"{kpi_area_module} Analysis... Completed With No Relevant Data")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "no_relevant_data"}
 
         kpi_entry = kpi_template.copy()
@@ -573,7 +579,7 @@ async def default_events_analysis(data, session):
         insert_status = await upsert_kpi("fstb", [kpi_entry], ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             logger.error(insert_status)

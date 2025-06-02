@@ -10,7 +10,7 @@ async def ownership_analysis(data, session):
 
     module_activation = False
 
-    logger.warning("Performing Ownership Structure Analysis... Started")
+    logger.info("Performing Ownership Structure Analysis... Started")
 
     kpi_area_module = "OWN"
 
@@ -89,7 +89,7 @@ async def ownership_analysis(data, session):
         insert_status = await upsert_kpi("oval", own_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             logger.error(insert_status)
@@ -101,7 +101,7 @@ async def ownership_analysis(data, session):
 
 
 async def ownership_flag(data, session):
-    logger.warning("Performing Ownership Structure Analysis... Started")
+    logger.info("Performing Ownership Structure Analysis... Started")
 
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
@@ -386,7 +386,7 @@ async def ownership_flag(data, session):
             insert_status = await upsert_kpi("sape", san_kpis, ens_id_value, session_id_value, session)
 
             if insert_status["status"] == "success":
-                logger.warning("SAN3A Analysis... Completed Successfully")
+                logger.info("SAN3A Analysis... Completed Successfully")
             else:
                 logger.error(insert_status)
 
@@ -405,7 +405,7 @@ async def ownership_flag(data, session):
             insert_status = await upsert_kpi("sown", pep_kpis, ens_id_value, session_id_value, session)
 
             if insert_status["status"] == "success":
-                logger.warning(f"PEP3A Analysis... Completed Successfully")
+                logger.info(f"PEP3A Analysis... Completed Successfully")
             else:
                 logger.error(insert_status)
 
@@ -424,7 +424,7 @@ async def ownership_flag(data, session):
             insert_status = await upsert_kpi("rfct", amr_kpis, ens_id_value, session_id_value, session)
 
             if insert_status["status"] == "success":
-                logger.warning(f"AMR2A Analysis... Completed Successfully")
+                logger.info(f"AMR2A Analysis... Completed Successfully")
             else:
                 logger.error(insert_status)
 

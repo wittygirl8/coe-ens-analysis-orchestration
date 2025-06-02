@@ -5,7 +5,7 @@ import json
 from app.schemas.logger import logger
 
 async def sanctions_analysis(data, session):
-    logger.warning("Performing Sanctions Analysis...")
+    logger.info("Performing Sanctions Analysis...")
 
     kpi_area_module = "SAN"
 
@@ -168,7 +168,7 @@ async def sanctions_analysis(data, session):
 
             san_kpis.append(SAN2A)
 
-        logger.info("# ------------------------------------------------------------ # PERSONS")
+        logger.debug("# ------------------------------------------------------------ # PERSONS")
         # ---------------------- SAN1B, 2B: Direct and Indirect for PERSON Level from table "grid_management"
         all_person_san_events = []
         if not person_info_none and len(person_retrieved_data) > 0:
@@ -273,12 +273,12 @@ async def sanctions_analysis(data, session):
             san_kpis.append(SAN2B)
         # ---------------------------------
 
-        logger.info(f"FOUND {len(san_kpis)} KPIS IN TOTAL -------------------")
+        logger.debug(f"FOUND {len(san_kpis)} KPIS IN TOTAL -------------------")
         # Insert results into the database
         insert_status = await upsert_kpi("sape", san_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "failure","info": "database_saving_error"}

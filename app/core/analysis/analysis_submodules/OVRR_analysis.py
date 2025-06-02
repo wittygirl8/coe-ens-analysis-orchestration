@@ -21,17 +21,17 @@ async def ovrr(data, session):
         sape_medium_trigger = False
         sape_low_trigger = False
         for row in sape:
-            logger.info(row)
+            logger.debug(row)
             if row.get("kpi_flag"):
                 if "High" in row.get('kpi_rating'):
-                    logger.info("high")
+                    logger.debug("high")
                     sape_high_trigger = True
                     break
                 elif "Medium" in row.get('kpi_rating'):
-                    logger.info("medium")
+                    logger.debug("medium")
                     sape_medium_trigger = True
                 elif "Low" in row.get('kpi_rating'):
-                    logger.info("low")
+                    logger.debug("low")
                     sape_low_trigger = True
         sanctions_rating = "High" if sape_high_trigger else "Medium" if sape_medium_trigger else "Low" if sape_low_trigger else "No Alerts"
 
@@ -145,7 +145,7 @@ async def ovrr(data, session):
             "kpi_rating": fin_rating
         }
 
-        logger.info("financial rating: %s", fin_rating)
+        logger.debug("financial rating: %s", fin_rating)
 
         # ---------------------------------------------------------------- RFCT & LGRK
 
@@ -296,7 +296,7 @@ async def ovrr(data, session):
         insert_status = await upsert_kpi("ovar", ovr_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             logger.error(insert_status)

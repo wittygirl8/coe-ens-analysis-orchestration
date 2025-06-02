@@ -5,7 +5,7 @@ import json
 from app.schemas.logger import logger
 async def adverse_media_analysis(data, session):
 
-    logger.warning("Performing Adverse Media Analysis for Other Criminal Activities...")
+    logger.info("Performing Adverse Media Analysis for Other Criminal Activities...")
 
     kpi_area_module = "AMO"
 
@@ -62,6 +62,7 @@ async def adverse_media_analysis(data, session):
             criminal_activities = []
             details = "Criminal activity discovered: \n"
             risk_rating_trigger = False
+            risk_flag_trigger = False
             for amo in adv:
 
                 if "no" in amo.get("eventDate","").lower():
@@ -86,6 +87,7 @@ async def adverse_media_analysis(data, session):
                     event_year = current_year - event_date.year
                     if event_year > 10:
                         continue
+                    risk_flag_trigger = True
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -105,7 +107,7 @@ async def adverse_media_analysis(data, session):
                 "themes": [a.get("eventsub") for a in criminal_activities]
             }
 
-            AMO1A["kpi_flag"] = True
+            AMO1A["kpi_flag"] = risk_flag_trigger
             AMO1A["kpi_value"] =json.dumps(kpi_value_overall_dict)
             AMO1A["kpi_rating"] = "High" if risk_rating_trigger else "Medium"
             AMO1A["kpi_details"] = details
@@ -123,6 +125,7 @@ async def adverse_media_analysis(data, session):
             criminal_activities = []
             details = "Criminal activity discovered: \n"
             risk_rating_trigger = False
+            risk_flag_trigger = False
             current_year = datetime.now().year
             all_person_amo_events = sorted(all_person_amo_events, key=lambda x:x.get("eventDate", ""), reverse=True)
             for amo in all_person_amo_events:
@@ -141,6 +144,7 @@ async def adverse_media_analysis(data, session):
                     event_year = current_year - event_date.year
                     if event_year > 10:
                         continue
+                    risk_flag_trigger = True
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -158,7 +162,7 @@ async def adverse_media_analysis(data, session):
                 "findings": criminal_activities,
                 "themes": [a.get("eventsub") for a in criminal_activities]
             }
-            AMO1B["kpi_flag"] = True
+            AMO1B["kpi_flag"] = risk_flag_trigger
             AMO1B["kpi_value"] = json.dumps(kpi_value_overall_dict)
             AMO1B["kpi_rating"] = "High" if risk_rating_trigger else "Medium"
             AMO1B["kpi_details"] = details
@@ -168,7 +172,7 @@ async def adverse_media_analysis(data, session):
         insert_status = await upsert_kpi("rfct", amo_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             logger.error(insert_status)
@@ -181,7 +185,7 @@ async def adverse_media_analysis(data, session):
 
 async def adverse_media_reputation_risk(data, session):
 
-    logger.warning("Performing Adverse Media Analysis for Business Ethics / Reputational Risk / Code of Conduct...")
+    logger.info("Performing Adverse Media Analysis for Business Ethics / Reputational Risk / Code of Conduct...")
 
     kpi_area_module = "AMR"
 
@@ -240,6 +244,7 @@ async def adverse_media_reputation_risk(data, session):
             reputation_risks = []
             details = "Reputation risk due to the following events:\n"
             risk_rating_trigger = False
+            risk_flag_trigger = False
             for adv in adv:
 
                 if "no" in adv.get("eventDate", "").lower():
@@ -262,6 +267,7 @@ async def adverse_media_reputation_risk(data, session):
                     event_year = current_year - event_date.year
                     if event_year > 10:
                         continue
+                    risk_flag_trigger = True
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -282,7 +288,7 @@ async def adverse_media_reputation_risk(data, session):
                 "themes": [a.get("eventsub") for a in reputation_risks]
             }
 
-            AMR1A["kpi_flag"] = True
+            AMR1A["kpi_flag"] = risk_flag_trigger
             AMR1A["kpi_value"] = json.dumps(kpi_value_overall_dict)
             AMR1A["kpi_rating"] = "High" if risk_rating_trigger else "Medium"
             AMR1A["kpi_details"] = details
@@ -300,6 +306,7 @@ async def adverse_media_reputation_risk(data, session):
             criminal_activities = []
             details = "Reputation risk due to the following events:\n"
             risk_rating_trigger = False
+            risk_flag_trigger = False
             current_year = datetime.now().year
             all_person_amr_events = sorted(all_person_amr_events, key=lambda x: x.get("eventDate", ""), reverse=True)
             for amr in all_person_amr_events:
@@ -316,6 +323,7 @@ async def adverse_media_reputation_risk(data, session):
                     event_year = current_year - event_date.year
                     if event_year > 10:
                         continue
+                    risk_flag_trigger = True
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -334,7 +342,7 @@ async def adverse_media_reputation_risk(data, session):
                 "themes": [a.get("eventsub") for a in criminal_activities]
             }
 
-            AMR1B["kpi_flag"] = True
+            AMR1B["kpi_flag"] = risk_flag_trigger
             AMR1B["kpi_value"] = json.dumps(kpi_value_overall_dict)
             AMR1B["kpi_rating"] = "High" if risk_rating_trigger else "Medium"
             AMR1B["kpi_details"] = details
@@ -344,7 +352,7 @@ async def adverse_media_reputation_risk(data, session):
         insert_status = await upsert_kpi("rfct", amr_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             logger.error(insert_status)
@@ -357,7 +365,7 @@ async def adverse_media_reputation_risk(data, session):
 
 
 async def bribery_corruption_fraud_analysis(data, session):
-    logger.warning("Performing Adverse Media Analysis - BCF...")
+    logger.info("Performing Adverse Media Analysis - BCF...")
 
     kpi_area_module = "BCF"
 
@@ -414,6 +422,7 @@ async def bribery_corruption_fraud_analysis(data, session):
         if len(bcf) > 0:
             bcf_events = []
             risk_rating_trigger = False
+            risk_flag_trigger = False
             bcf_events_detail = "Risk identified due to the following events:\n"
             for event in bcf:
 
@@ -437,6 +446,7 @@ async def bribery_corruption_fraud_analysis(data, session):
                     event_year = current_year - event_date.year
                     if event_year > 10:
                         continue
+                    risk_flag_trigger = True
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -453,7 +463,7 @@ async def bribery_corruption_fraud_analysis(data, session):
                 "findings": bcf_events,
                 "themes": [a.get("eventsub") for a in bcf_events]
             }
-            BCF1A["kpi_flag"] = True
+            BCF1A["kpi_flag"] = risk_flag_trigger
             BCF1A["kpi_value"] = json.dumps(kpi_value_overall_dict)
             BCF1A["kpi_rating"] = "High" if risk_rating_trigger else "Medium"
             BCF1A["kpi_details"] = bcf_events_detail
@@ -472,6 +482,7 @@ async def bribery_corruption_fraud_analysis(data, session):
             bcf_activities = []
             details = "Risk identified due to the following events:\n"
             risk_rating_trigger = False
+            risk_flag_trigger = False
             current_year = datetime.now().year
             all_person_bcf_events = sorted(all_person_bcf_events, key=lambda x: x.get("eventDate", ""), reverse=True)
 
@@ -490,6 +501,7 @@ async def bribery_corruption_fraud_analysis(data, session):
                     event_year = current_year - event_date.year
                     if event_year > 10:
                         continue
+                    risk_flag_trigger = True
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -508,7 +520,7 @@ async def bribery_corruption_fraud_analysis(data, session):
                 "findings": bcf_activities,
                 "themes": [a.get("eventsub") for a in bcf_activities]
             }
-            BCF1B["kpi_flag"] = True
+            BCF1B["kpi_flag"] = risk_flag_trigger
             BCF1B["kpi_value"] = json.dumps(kpi_value_overall_dict)
             BCF1B["kpi_rating"] = "High" if risk_rating_trigger else "Medium"
             BCF1B["kpi_details"] = details
@@ -519,7 +531,7 @@ async def bribery_corruption_fraud_analysis(data, session):
         insert_status = await upsert_kpi("rfct", bcf_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             logger.error(insert_status)
@@ -534,7 +546,7 @@ async def bribery_corruption_fraud_analysis(data, session):
 async def regulatory_analysis(data, session):
     module_activation = False
 
-    logger.warning("Performing Regulatory Analysis...")
+    logger.info("Performing Regulatory Analysis...")
 
     kpi_area_module = "REG"
 
@@ -594,6 +606,7 @@ async def regulatory_analysis(data, session):
 
             reg_events = []
             risk_rating_trigger = False
+            risk_flag_trigger = False
             reg_events_detail = "Risk identified due to the following events:\n"
 
             for event in reg:
@@ -618,6 +631,7 @@ async def regulatory_analysis(data, session):
                     event_year = current_year - event_date.year
                     if event_year > 10:
                         continue
+                    risk_flag_trigger = True
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -635,7 +649,7 @@ async def regulatory_analysis(data, session):
                 "themes": [a.get("eventsub") for a in reg_events]
             }
 
-            REG1A["kpi_flag"] = True
+            REG1A["kpi_flag"] = risk_flag_trigger
             REG1A["kpi_value"] = json.dumps(kpi_value_overall_dict)
             REG1A["kpi_rating"] = "High" if risk_rating_trigger else "Medium"
             REG1A["kpi_details"] = reg_events_detail
@@ -653,6 +667,7 @@ async def regulatory_analysis(data, session):
             reg_activities = []
             details = "Risk identified due to the following events:\n"
             risk_rating_trigger = False
+            risk_flag_trigger = False
             current_year = datetime.now().year
             all_person_reg_events = sorted(all_person_reg_events, key=lambda x: x.get("eventDate", ""), reverse=True)
             for reg in all_person_reg_events:
@@ -662,6 +677,7 @@ async def regulatory_analysis(data, session):
                     event_year = current_year - event_date.year
                     if event_year > 10:
                         continue
+                    risk_flag_trigger = True
                     if event_year <= 5:
                         risk_rating_trigger = True
                 except:
@@ -686,7 +702,7 @@ async def regulatory_analysis(data, session):
                 "findings": reg_activities,
                 "themes": [a.get("eventsub") for a in reg_activities]
             }
-            REG1B["kpi_flag"] = True
+            REG1B["kpi_flag"] = risk_flag_trigger
             REG1B["kpi_value"] = json.dumps(kpi_value_overall_dict)
             REG1B["kpi_rating"] = "High" if risk_rating_trigger else "Medium"
             REG1B["kpi_details"] = details
@@ -697,7 +713,7 @@ async def regulatory_analysis(data, session):
         insert_status = await upsert_kpi("rfct", reg_kpis, ens_id_value, session_id_value, session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{kpi_area_module} Analysis... Completed Successfully")
+            logger.info(f"{kpi_area_module} Analysis... Completed Successfully")
             return {"ens_id": ens_id_value, "module": kpi_area_module, "status": "completed", "info": "analysed"}
         else:
             logger.error(insert_status)

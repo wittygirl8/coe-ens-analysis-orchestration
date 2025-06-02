@@ -7,7 +7,7 @@ from app.schemas.logger import logger
 
 
 async def sape_summary(data, session):
-    logger.warning("Performing Sanctions Summary Analysis...")
+    logger.info("Performing Summary: Sanctions...")
 
     area = "sanctions"  # Changed from "SAN" to "sanctions" as per requirements
     ens_id_value = data.get("ens_id")
@@ -26,7 +26,7 @@ async def sape_summary(data, session):
                                                           session)
 
             if insert_status["status"] == "success":
-                logger.warning(f"{area} Summary... Completed Successfully")
+                logger.info(f"{area} Summary... Completed Successfully")
                 return [summary_text]
             else:
                 logger.error(insert_status)
@@ -150,7 +150,7 @@ async def sape_summary(data, session):
             summary_sentences.append("No notable sanction findings for the entity.")
 
         summary_text = "\n".join(summary_sentences)
-        logger.info("Sanctions summary: %s", summary_text)
+        logger.debug("Sanctions summary: %s", summary_text)
 
         try:
             summary_data = [{"area": area, "summary": summary_text}]
@@ -159,7 +159,7 @@ async def sape_summary(data, session):
             )
 
             if insert_status["status"] == "success":
-                logger.warning(f"{area} Summary... Completed Successfully")
+                logger.info(f"{area} Summary... Completed Successfully")
             else:
                 logger.error(insert_status)
 
@@ -170,11 +170,11 @@ async def sape_summary(data, session):
             return ["No notable sanction findings for the entity."]
 
     except Exception as e:
-        logger.error(f"Error in module: {area}: {str(e)}")
+        logger.error(f"Error in summary: {area}: {str(e)}")
         return ["No notable sanction findings for the entity."]
 
 async def bcf_summary(data, session):
-    logger.warning("Performing BCF Summary Analysis...")
+    logger.info("Performing Summary: BCF...")
 
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
@@ -273,7 +273,7 @@ async def bcf_summary(data, session):
                 summary_sentences = ["No notable Bribery/Corruption/Fraud findings for this entity."]
 
         summary_text = "\n".join(summary_sentences)
-        logger.info("BCF findings are: %s", summary_text)
+        logger.debug("BCF summary: %s", summary_text)
 
         try:
             summary_data = [{"area": "bribery_corruption_overall", "summary": summary_text}]
@@ -281,7 +281,7 @@ async def bcf_summary(data, session):
                                                                   session_id_value, session)
 
             if insert_status["status"] == "success":
-                logger.warning("BCF Analysis... Completed Successfully")
+                logger.info("BCF Summary... Completed Successfully")
             else:
                 logger.error(insert_status)
 
@@ -292,12 +292,12 @@ async def bcf_summary(data, session):
 
 
     except Exception as e:
-        logger.error(f"Error in BCF analysis: {str(e)}")
+        logger.error(f"Error in BCF Summary: {str(e)}")
         return ["No notable Bribery, Corruption, or Fraud findings for this entity."]
 
 
 async def state_ownership_summary(data, session):
-    logger.warning("Performing State Ownership and PEP Analysis...")
+    logger.info("Performing Summary: State Ownership and PEP...")
 
     required_columns = ["kpi_area", "kpi_definition", "kpi_flag", "kpi_code", "kpi_rating", "kpi_details", "kpi_value"]
     ens_id_value = data.get("ens_id")
@@ -447,7 +447,7 @@ async def state_ownership_summary(data, session):
 
     combined_summary = "\n\n".join(summary_sentences).strip()
 
-    logger.info("State Ownership and PEP summary: %s", combined_summary)
+    logger.debug("State Ownership and PEP summary: %s", combined_summary)
 
     try:
         summary_data = [{"area": "government_political", "summary": combined_summary}]
@@ -460,7 +460,7 @@ async def state_ownership_summary(data, session):
         )
 
         if insert_status["status"] == "success":
-            logger.warning("State Ownership and PEP Analysis completed successfully")
+            logger.info("Summary: State Ownership and PEP Analysis completed successfully")
         else:
             logger.error(f"Failed to save state ownership summary: {insert_status}")
 
@@ -470,7 +470,7 @@ async def state_ownership_summary(data, session):
     return summary_sentences
 
 async def financials_summary(data, session):
-    logger.warning("Performing Financials Analysis...")
+    logger.info("Performing Summary: Financials...")
 
     required_columns = ["kpi_area", "kpi_definition", "kpi_flag", "kpi_rating", "kpi_details"]
     ens_id_value = data.get("ens_id")
@@ -502,7 +502,7 @@ async def financials_summary(data, session):
             summary_sentences.append("No financials available.")
 
     summary_text = "\n".join(summary_sentences) if summary_sentences else "No financials available."
-    logger.info("Financials summary: %s", summary_text)
+    logger.debug("Financials summary: %s", summary_text)
 
     try:
         summary_data = [{"area": "financials", "summary": summary_text}]
@@ -510,7 +510,7 @@ async def financials_summary(data, session):
                                                               session)
 
         if insert_status["status"] == "success":
-            logger.warning("Financials Analysis... Completed Successfully")
+            logger.info("Financials Summary... Completed Successfully")
         else:
             logger.error(insert_status)
 
@@ -520,7 +520,7 @@ async def financials_summary(data, session):
     return summary_sentences
 
 async def adverse_media_summary(data, session):
-    logger.warning("Performing Adverse Media Analysis...")
+    logger.info("Performing Summary: Adverse Media...")
 
     required_columns = ["kpi_area", "kpi_flag", "kpi_code", "kpi_rating", "kpi_value"]
     ens_id_value = data.get("ens_id")
@@ -681,7 +681,7 @@ async def adverse_media_summary(data, session):
         summary_sentences.append(f"No adverse media findings.")
 
     combined_summary = "\n\n".join(summary_sentences)
-    logger.info("AMO and AMR are: %s", combined_summary)
+    logger.debug("AMO and AMR are: %s", combined_summary)
 
     try:
         summary_data = [{"area": "other_adverse_media", "summary": combined_summary}]
@@ -689,7 +689,7 @@ async def adverse_media_summary(data, session):
                                                               session)
 
         if insert_status["status"] == "success":
-            logger.warning("Adverse Media Analysis... Completed Successfully")
+            logger.info("Adverse Media Summary... Completed Successfully")
         else:
             logger.error(insert_status)
 
@@ -699,6 +699,8 @@ async def adverse_media_summary(data, session):
     return summary_sentences
 
 async def additional_indicators_summary(data, session):
+
+    logger.info("Performing Summary: Additional Indicators")
     required_columns = ["kpi_area", "kpi_code", "kpi_flag", "kpi_rating", "kpi_details"]
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
@@ -751,15 +753,15 @@ async def additional_indicators_summary(data, session):
         if esg_findings:
             findings.append("ESG")
         result.append(f"There are notable findings in {', '.join(findings)} screening/profiling for this entity.")
-        logger.info("There are findings for ESG or Cyber")
+        logger.debug("There are findings for ESG or Cyber")
 
     if website_findings:
         result.append("There are notable findings in website screening/profiling for this entity.")
-        logger.info("There are findings for WEB")
+        logger.debug("There are findings for WEB")
 
     if not result:
         result.append("No notable findings in screening/profiling of ESG, cybersecurity, or website for this entity.")
-        logger.info("There are no findings for ESG and Cyber")
+        logger.debug("There are no findings for ESG and Cyber")
 
     # Join the result list into a single string with line breaks
     result_text = "\n\n".join(result).strip()
@@ -776,7 +778,7 @@ async def additional_indicators_summary(data, session):
         )
 
         if insert_status["status"] == "success":
-            logger.warning("Additional Indicators Analysis completed successfully")
+            logger.info("Additional Indicators Summary completed successfully")
         else:
             logger.error(f"Failed to save additional indicators summary: {insert_status}")
 
@@ -786,6 +788,8 @@ async def additional_indicators_summary(data, session):
     return result
 
 async def legal_regulatory_summary(data, session):
+
+    logger.info("Performing Summary: Legal and Regulatory")
     required_columns = ["kpi_area", "kpi_flag", "kpi_rating", "kpi_value"]
     ens_id_value = data.get("ens_id")
     session_id_value = data.get("session_id")
@@ -896,7 +900,7 @@ async def legal_regulatory_summary(data, session):
     if not summary_sentences:
         return ["No legal or regulatory findings available."]
 
-    logger.info(f"The leg and reg are : %s", summary_sentences)
+    logger.debug(f"The leg and reg are : %s", summary_sentences)
     return summary_sentences
 
 def capitalize_after_full_stop(text):
@@ -914,6 +918,8 @@ def enforce_lowercase(text):
     return text.lower()
 
 async def overall_summary(data, session, supplier_name):
+
+    logger.info("Performing Overall Summary....")
     area = "overall"
     required_columns = ["kpi_code", "kpi_area", "kpi_rating", "kpi_flag"]
     ens_id_value = data.get("ens_id")
@@ -942,7 +948,7 @@ async def overall_summary(data, session, supplier_name):
 
     for row in retrieved_data:
         if not isinstance(row, dict):
-            logger.info(f"Unexpected row format: %s",row)
+            logger.warning(f"Unexpected row format: %s",row)
             continue
 
         kpi_code = row.get("kpi_code")
@@ -1596,7 +1602,7 @@ async def overall_summary(data, session, supplier_name):
 
     final_summary = capitalize_after_full_stop(final_summary)
 
-    logger.info(final_summary)
+    logger.debug(final_summary)
 
     try:
         summary_data = [{"area": area, "summary": final_summary}]
@@ -1604,7 +1610,7 @@ async def overall_summary(data, session, supplier_name):
                                                               session)
 
         if insert_status["status"] == "success":
-            logger.warning(f"{area} Summary... Completed Successfully")
+            logger.info(f"{area} Summary... Completed Successfully")
         else:
             logger.error(insert_status)
 

@@ -16,21 +16,12 @@ from app.core.analysis.supplier_validation_submodules.utilities import *
 from app.models import *
 import requests
 from urllib.parse import quote
-import logging 
 from app.core.config import get_settings
 from itertools import groupby
 from operator import itemgetter
 from app.schemas.logger import logger
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, 
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
-# Create a logger instance
-log = logging.getLogger(__name__)
 
 AZURE_ENDPOINT=os.getenv("OPENAI__AZURE_ENDPOINT")
 API_KEY= os.getenv("OPENAI__API_KEY")
@@ -73,7 +64,7 @@ async def supplier_name_validation(data, session, search_engine:str):
         try:
             # Generate JWT token
             jwt_token = create_jwt_token("orchestration", "analysis")
-            logger.info("TOKEN: %s", jwt_token)
+            logger.debug(f"TOKEN: {jwt_token}")
         except Exception as e:
             logger.error("Error generating JWT token: %s", e)
             raise
@@ -188,20 +179,7 @@ async def supplier_name_validation(data, session, search_engine:str):
                 "suggested_address_type": ""
             }
 
-            logger.info("ENSID BEFORE------- %s",incoming_ens_id)
-            processed_ens_id, duplicate = await check_and_update_unique_value(
-                table_name="upload_supplier_master_data",
-                column_name="suggested_bvd_id",
-                bvd_id_to_check="",
-                ens_id=incoming_ens_id,
-                session=session
-            )
-            incoming_ens_id = processed_ens_id
-            logger.info("ENS ID AFTER %s",incoming_ens_id)
-            if duplicate["status"] == "unique":
-                updated_data["pre_existing_bvdid"]=False
-            elif duplicate["status"] == "duplicate":
-                updated_data["pre_existing_bvdid"]=True
+            updated_data["pre_existing_bvdid"] = False
 
             api_response = {
                 "ens_id": incoming_ens_id,
@@ -301,26 +279,8 @@ async def supplier_name_validation(data, session, search_engine:str):
 
     except Exception as e:
 
-        if not matched and not potential_pass:
-            api_response = {
-                    "ens_id": incoming_ens_id,
-                    "L2_verification": TruesightStatus.NOT_REQUIRED,
-                    "L2_confidence": None,
-                    "verification_details": None,
-                    "error": "SupplierNameValidation - {e}"
-                }
-        else:
-            api_response = {
-                    "ens_id": incoming_ens_id,
-                    "L2_verification": TruesightStatus.VALIDATED, # TODO: NEED TO BE REQUIRED INSTEAD OF VALIDATED
-                    "L2_confidence": None,
-                    "verification_details": None,
-                    "error": f"SupplierNameValidation - {e}"
-                }
-            
-        results.append(api_response)
-        logger.info(f"[SNV] Process completed for {incoming_ens_id}")
-        return False, results
+        logger.error(f"Supplier Name Validation Failed - {str(e)}")
+        raise
 
 
 async def ensid_duplicate_in_session(session_id, session):
@@ -329,10 +289,10 @@ async def ensid_duplicate_in_session(session_id, session):
 
     data_for_sessionId = await get_dynamic_ens_data("upload_supplier_master_data", required_columns=["all"],ens_id=None, session_id=session_id, session=session)
 
+    data_for_sessionId = [entry for entry in data_for_sessionId if (entry.get( "validation_status","")!=ValidationStatus.NOT_VALIDATED.value)]
     # Sort the data by the key(s) you want to group by
     data_for_sessionId.sort(key=itemgetter('ens_id'))
 
-    # Group by 'age' and 'city'
     grouped = groupby(data_for_sessionId, key=itemgetter('ens_id'))
 
     for ens_id, group in grouped:
@@ -387,56 +347,75 @@ async def ensid_duplicate_in_session(session_id, session):
 
 async def truesight_l2_validation(incoming_ens_id, incoming_country, incoming_name, search_engine):
 
-    logger.info("[SNV]  == Performing L2 Validation == ")
-    payload = {
-        "country": incoming_country,
-        "name": incoming_name,
-        "language": "en",
-        "request_type": "single"
-    }
+    try:
+        logger.warning("[SNV]  == Performing L2 Validation == ")
+        payload = {
+            "country": incoming_country,
+            "name": incoming_name,
+            "language": "en",
+            "request_type": "single"
+        }
 
-    sample = request_fastapi(payload, flag='single')
+        sample = request_fastapi(payload, flag='single')
 
-    if search_engine == "google":
-        country_codes = r"app\core\analysis\supplier_validation_submodules\files\codes_google.json"
-        with open(country_codes, 'r', encoding='utf-8') as file:
-            country_data = json.load(file)
-        country_from_codes = get_country_google(str(incoming_country), country_data=country_data)
-    elif search_engine == "bing":
-        country_codes = r"app\core\analysis\supplier_validation_submodules\files\codes_bing.json"
-        with open(country_codes, 'r', encoding='utf-8') as file:
-            country_data = json.load(file)
-        country_from_codes = get_country_bing(str(incoming_country), country_data=country_data)
+        if search_engine == "google":
+            country_codes = r"app\core\analysis\supplier_validation_submodules\files\codes_google.json"
+            with open(country_codes, 'r', encoding='utf-8') as file:
+                country_data = json.load(file)
+            country_from_codes = get_country_google(str(incoming_country), country_data=country_data)
+        elif search_engine == "bing":
+            country_codes = r"app\core\analysis\supplier_validation_submodules\files\codes_bing.json"
+            with open(country_codes, 'r', encoding='utf-8') as file:
+                country_data = json.load(file)
+            country_from_codes = get_country_bing(str(incoming_country), country_data=country_data)
 
-    analysis = []
-    if len(sample.get("data", [])) > 0:
-        for item in sample["data"]:
-            # print("\n\n News Article :\n\n",item.get("full_article"))
-            url = str(item.get("link"))
-            ts_flag, token_usage = run_ts_analysis(
-                client=client,
-                model=model_deployment_name,
-                article=item.get("full_article"),
-                name=str(incoming_name),
-                country=str(country_from_codes),
-                url=url,
+        analysis = []
+        if len(sample.get("data", [])) > 0:
+            for item in sample["data"]:
+                # print("\n\n News Article :\n\n",item.get("full_article"))
+                url = str(item.get("link"))
+                ts_flag, token_usage = run_ts_analysis(
+                    client=client,
+                    model=model_deployment_name,
+                    article=item.get("full_article"),
+                    name=str(incoming_name),
+                    country=str(country_from_codes),
+                    url=url,
+                )
+                ts_flag['link'] = url
+                analysis.append(ts_flag)
+                logger.warning(f"[SNV] TS analysis: {analysis}")
+
+            # Aggregate results
+            agg_output = aggregate_verified_flag(analysis)
+            logger.warning(f"[SNV] Aggregated verified Flag: {agg_output}")
+            # Calculate metric
+            metric = calculate_metric(
+                num_true=agg_output['num_yes'],
+                num_analyzed=agg_output['num_analysed'],
+                max_articles=10
             )
-            ts_flag['link'] = url
-            analysis.append(ts_flag)
-            logger.info(f"[SNV] TS analysis: {analysis}")
+            agg_output["ens_id"] = incoming_ens_id
+            agg_output["token_usage"] = token_usage
+        else:
+            agg_output = {
+                "num_yes": 0,
+                "num_analysed": 0,
+                "ens_id": incoming_ens_id,
+                "verified": "No",
+                "token_usage": None
+            }
+            metric = 0.0
 
-        # Aggregate results
-        agg_output = aggregate_verified_flag(analysis)
-        logger.info(f"[SNV] Aggregated verified Flag: {agg_output}")
-        # Calculate metric
-        metric = calculate_metric(
-            num_true=agg_output['num_yes'],
-            num_analyzed=agg_output['num_analysed'],
-            max_articles=10
-        )
-        agg_output["ens_id"] = incoming_ens_id
-        agg_output["token_usage"] = token_usage
-    else:
+        # TODO: Truesight will make an api call back to orbis once it finds that entity's unique identifier on the web, but for now: we say [no match - no match]
+        agg_verified = agg_output['verified']
+
+        return agg_verified,agg_output,metric
+
+    except Exception as e:
+
+        logger.warning(str(e))
+
         agg_output = {
             "num_yes": 0,
             "num_analysed": 0,
@@ -445,8 +424,6 @@ async def truesight_l2_validation(incoming_ens_id, incoming_country, incoming_na
             "token_usage": None
         }
         metric = 0.0
+        agg_verified = agg_output['verified']
 
-    # TODO: Truesight will make an api call back to orbis once it finds that entity's unique identifier on the web, but for now: we say [no match - no match]
-    agg_verified = agg_output['verified']  # This can be True, False, or None
-
-    return agg_verified,agg_output,metric
+        return agg_verified, agg_output, metric

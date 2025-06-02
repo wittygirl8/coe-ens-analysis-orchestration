@@ -36,7 +36,7 @@ async def format_json_report(data, session):
     meta_cols = await get_dynamic_ens_data("upload_supplier_master_data", upload_meta_cols, ens_id_value,
                                            session_id_value, session)
     meta_cols = meta_cols[0]
-    logger.info(meta_cols)
+    logger.debug(meta_cols)
     upload_metadata = {
         "upload_metadata": meta_cols
     }
@@ -64,7 +64,7 @@ async def format_json_report(data, session):
         "screening_kpis": screening_kpis_dict
     }
     main_report_json.update(screening_kpis)
-    logger.warning("checkpoint 5")
+    logger.debug("checkpoint 5")
     aggregated_ratings = {}
     for area, kpis_list in screening_kpis_dict.items():  # this is the compiled all kpis
         # key = kpi_area, value = list of kpis for area
@@ -134,8 +134,8 @@ async def format_json_report(data, session):
             },
         }
         main_report_json.update(static_info)
-    except:
-        logger.warning("ERROR IN TPRP FIELDS -> REPORT.JSON")
+    except Exception as e:
+        logger.error(f"ERROR IN TPRP FIELDS -> REPORT.JSON {str(e)}")
 
     buffer = io.BytesIO()
     json_bytes = json.dumps(main_report_json, default=str).encode('utf-8')

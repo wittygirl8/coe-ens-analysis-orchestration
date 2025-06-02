@@ -33,6 +33,13 @@ class AnalysisRequestSingle(BaseRequest):
     ens_id: str
     session_id: str
 
+class GraphRequest(BaseRequest):
+    """
+    Schema for input data required for Phase 1 Analysis.
+    """
+    ens_id: str
+    session_id: str
+
 
 
 class BulkAnalysisRequest(BaseRequest):
@@ -57,4 +64,12 @@ class StreamingSessionIdRequest(BaseRequest):
     Schema for input data required for streaming request for session_ids
     """
 
+    session_id: str
+
+class GraphRequest(BaseRequest):
+    """
+    Schema for input data required for streaming request for session_ids
+    """
+
+    client_id: str
     session_id: str
